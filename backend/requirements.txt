@@ -26,5 +26,5 @@ groq==0.15.0
 # Logging
 structlog==24.4.0
 
-# WebSocket
-websockets==14.1
+# Add aiosqlite for SQLite support
+aiosqlite==0.20.0
