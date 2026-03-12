@@ -176,7 +176,7 @@ async def drop_tables():
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    print("⚠️  Database tables dropped")
+    print("Database tables dropped")
 
 
 async def check_database_connection():
@@ -203,7 +203,7 @@ async def startup_database():
     """
     Initialize database connection on app startup.
     """
-    print("🔌 Connecting to database...")
+    print("Connecting to database...")
     
     # Test connection
     if not await check_database_connection():
@@ -216,6 +216,6 @@ async def shutdown_database():
     """
     Clean up database connections on app shutdown.
     """
-    print("🔌 Closing database connections...")
+    print("Closing database connections...")
     await engine.dispose()
-    print("✅ Database connections closed")
+    print("Database connections closed")

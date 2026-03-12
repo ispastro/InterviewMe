@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     - Initialize database connections
     - Clean up on shutdown
     """
-    print("🚀 Starting InterviewMe API...")
+    print("Starting InterviewMe API...")
     
     # Startup
     try:
@@ -50,21 +50,21 @@ async def lifespan(app: FastAPI):
         # Initialize database
         await startup_database()
         
-        print("✅ InterviewMe API started successfully")
+        print("InterviewMe API started successfully")
         print(f"   Environment: {settings.ENVIRONMENT}")
         print(f"   Docs available at: /docs")
         
     except Exception as e:
-        print(f"💥 Failed to start application: {e}")
+        print(f"Failed to start application: {e}")
         raise
     
     # Application is running
     yield
     
     # Shutdown
-    print("🛑 Shutting down InterviewMe API...")
+    print("Shutting down InterviewMe API...")
     await shutdown_database()
-    print("✅ InterviewMe API shut down successfully")
+    print("InterviewMe API shut down successfully")
 
 
 # ============================================================

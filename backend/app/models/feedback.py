@@ -16,7 +16,8 @@ import uuid
 from typing import Dict, Any, List, Optional
 
 from sqlalchemy import String, Text, Float, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -74,21 +75,21 @@ class Feedback(Base):
     # ============================================================
     
     strengths: Mapped[List[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=list,
         comment="List of identified strengths with evidence"
     )
     
     weaknesses: Mapped[List[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=list,
         comment="List of identified weaknesses with evidence"
     )
     
     suggestions: Mapped[List[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=list,
         comment="Actionable improvement suggestions"
@@ -99,14 +100,14 @@ class Feedback(Base):
     # ============================================================
     
     phase_scores: Mapped[Dict[str, float]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=dict,
         comment="Score breakdown by interview phase"
     )
     
     skill_assessment: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Assessment of specific skills mentioned in JD"
     )
@@ -122,7 +123,7 @@ class Feedback(Base):
     # ============================================================
     
     generation_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Metadata about feedback generation (AI model, tokens used, etc.)"
     )

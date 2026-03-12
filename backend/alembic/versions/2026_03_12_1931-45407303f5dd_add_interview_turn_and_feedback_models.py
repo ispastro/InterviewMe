@@ -8,6 +8,7 @@ Create Date: 2026-03-12 19:31:58.085580+00:00
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy import Text
 
 # revision identifiers, used by Alembic.
 revision = '45407303f5dd'
@@ -23,13 +24,13 @@ def upgrade() -> None:
     sa.Column('user_id', sa.UUID(), nullable=False, comment='User who owns this interview'),
     sa.Column('status', sa.String(length=20), nullable=False, comment='Current interview state'),
     sa.Column('cv_raw_text', sa.Text(), nullable=True, comment='Original extracted CV text'),
-    sa.Column('cv_analysis', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Structured CV analysis from AI (skills, experience, etc.)'),
+    sa.Column('cv_analysis', sa.JSON(), nullable=True, comment='Structured CV analysis from AI (skills, experience, etc.)'),
     sa.Column('jd_raw_text', sa.Text(), nullable=True, comment='Original job description text'),
-    sa.Column('jd_analysis', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Structured JD analysis from AI (requirements, level, etc.)'),
-    sa.Column('interview_config', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Interview settings (phases, question counts, difficulty)'),
+    sa.Column('jd_analysis', sa.JSON(), nullable=True, comment='Structured JD analysis from AI (requirements, level, etc.)'),
+    sa.Column('interview_config', sa.JSON(), nullable=True, comment='Interview settings (phases, question counts, difficulty)'),
     sa.Column('target_role', sa.String(length=255), nullable=True, comment='Job title extracted from JD'),
     sa.Column('target_company', sa.String(length=255), nullable=True, comment='Company name if specified'),
-    sa.Column('session_state', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Current interview session state (for crash recovery)'),
+    sa.Column('session_state', sa.JSON(), nullable=True, comment='Current interview session state (for crash recovery)'),
     sa.Column('current_phase', sa.String(length=20), nullable=True, comment='Current interview phase'),
     sa.Column('current_turn', sa.Integer(), nullable=False, comment='Current turn number (0 = not started)'),
     sa.Column('completed_at', sa.DateTime(), nullable=True, comment='When the interview was completed'),
@@ -50,13 +51,13 @@ def upgrade() -> None:
     sa.Column('interview_id', sa.UUID(), nullable=False, comment='Interview this feedback belongs to'),
     sa.Column('overall_score', sa.Float(), nullable=False, comment='Overall interview score (0-100)'),
     sa.Column('summary', sa.Text(), nullable=True, comment='Brief summary of performance'),
-    sa.Column('strengths', postgresql.JSONB(astext_type=Text()), nullable=False, comment='List of identified strengths with evidence'),
-    sa.Column('weaknesses', postgresql.JSONB(astext_type=Text()), nullable=False, comment='List of identified weaknesses with evidence'),
-    sa.Column('suggestions', postgresql.JSONB(astext_type=Text()), nullable=False, comment='Actionable improvement suggestions'),
-    sa.Column('phase_scores', postgresql.JSONB(astext_type=Text()), nullable=False, comment='Score breakdown by interview phase'),
-    sa.Column('skill_assessment', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Assessment of specific skills mentioned in JD'),
+    sa.Column('strengths', sa.JSON(), nullable=False, comment='List of identified strengths with evidence'),
+    sa.Column('weaknesses', sa.JSON(), nullable=False, comment='List of identified weaknesses with evidence'),
+    sa.Column('suggestions', sa.JSON(), nullable=False, comment='Actionable improvement suggestions'),
+    sa.Column('phase_scores', sa.JSON(), nullable=False, comment='Score breakdown by interview phase'),
+    sa.Column('skill_assessment', sa.JSON(), nullable=True, comment='Assessment of specific skills mentioned in JD'),
     sa.Column('detailed_analysis', sa.Text(), nullable=True, comment='Full narrative feedback analysis'),
-    sa.Column('generation_metadata', postgresql.JSONB(astext_type=Text()), nullable=True, comment='Metadata about feedback generation (AI model, tokens used, etc.)'),
+    sa.Column('generation_metadata', sa.JSON(), nullable=True, comment='Metadata about feedback generation (AI model, tokens used, etc.)'),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for this record'),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, comment='When this record was created'),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, comment='When this record was last updated'),
@@ -72,7 +73,7 @@ def upgrade() -> None:
     sa.Column('phase', sa.String(length=20), nullable=False, comment='Interview phase when this turn occurred'),
     sa.Column('ai_question', sa.Text(), nullable=False, comment="The AI's question to the candidate"),
     sa.Column('user_answer', sa.Text(), nullable=True, comment="Candidate's transcribed answer"),
-    sa.Column('evaluation', postgresql.JSONB(astext_type=Text()), nullable=True, comment='AI evaluation of the answer (relevance, depth, clarity)'),
+    sa.Column('evaluation', sa.JSON(), nullable=True, comment='AI evaluation of the answer (relevance, depth, clarity)'),
     sa.Column('duration_seconds', sa.Float(), nullable=True, comment='How long the candidate took to answer'),
     sa.Column('difficulty_level', sa.Float(), nullable=True, comment='Question difficulty (0.0 = easy, 1.0 = hard)'),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for this record'),

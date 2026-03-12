@@ -113,7 +113,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         })
     
     # Log validation error
-    print(f"❌ Validation Error [{request_id}]: {request.method} {request.url}")
+    print(f"Validation Error [{request_id}]: {request.method} {request.url}")
     print(f"   Errors: {errors}")
     
     response_data = create_error_response(
@@ -139,7 +139,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     request_id = str(uuid.uuid4())
     
     # Log HTTP exception
-    print(f"❌ HTTP Exception [{request_id}]: {exc.status_code} - {exc.detail}")
+    print(f"HTTP Exception [{request_id}]: {exc.status_code} - {exc.detail}")
     print(f"   Request: {request.method} {request.url}")
     
     response_data = create_error_response(
@@ -165,7 +165,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     request_id = str(uuid.uuid4())
     
     # Log the full exception with traceback
-    print(f"💥 Unhandled Exception [{request_id}]: {type(exc).__name__}")
+    print(f"Unhandled Exception [{request_id}]: {type(exc).__name__}")
     print(f"   Request: {request.method} {request.url}")
     print(f"   Error: {str(exc)}")
     
@@ -203,13 +203,13 @@ def log_error(request: Request, exc: AppError, request_id: str, status_code: int
     # Determine log level based on status code
     if status_code >= 500:
         level = "ERROR"
-        emoji = "💥"
+        emoji = "ERROR"
     elif status_code >= 400:
         level = "WARN"
-        emoji = "⚠️"
+        emoji = "WARN"
     else:
         level = "INFO"
-        emoji = "ℹ️"
+        emoji = "INFO"
     
     # Log structured error information
     print(f"{emoji} {level} [{request_id}]: {type(exc).__name__}")
@@ -253,4 +253,4 @@ def register_exception_handlers(app):
     # Catch-all for unexpected exceptions
     app.add_exception_handler(Exception, generic_exception_handler)
     
-    print("✅ Exception handlers registered")
+    print("Exception handlers registered")

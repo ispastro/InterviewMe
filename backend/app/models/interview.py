@@ -19,7 +19,8 @@ from typing import Optional, List, Dict, Any
 from enum import Enum
 
 from sqlalchemy import String, Text, Float, Integer, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -105,7 +106,7 @@ class Interview(Base):
     )
     
     cv_analysis: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Structured CV analysis from AI (skills, experience, etc.)"
     )
@@ -121,7 +122,7 @@ class Interview(Base):
     )
     
     jd_analysis: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Structured JD analysis from AI (requirements, level, etc.)"
     )
@@ -131,7 +132,7 @@ class Interview(Base):
     # ============================================================
     
     interview_config: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Interview settings (phases, question counts, difficulty)"
     )
@@ -154,7 +155,7 @@ class Interview(Base):
     # ============================================================
     
     session_state: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="Current interview session state (for crash recovery)"
     )
@@ -382,7 +383,7 @@ class Turn(Base):
     # ============================================================
     
     evaluation: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=True,
         comment="AI evaluation of the answer (relevance, depth, clarity)"
     )

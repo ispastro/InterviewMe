@@ -436,7 +436,7 @@ async def get_user_interview_stats(
         "most_recent_interview": {
             "id": str(most_recent.id),
             "target_role": most_recent.target_role,
-            "status": most_recent.status.value,
+            "status": most_recent.status if isinstance(most_recent.status, str) else most_recent.status.value,
             "created_at": most_recent.created_at.isoformat()
         } if most_recent else None,
         "role_distribution": dict(sorted(role_distribution.items(), key=lambda x: x[1], reverse=True)[:5]),
