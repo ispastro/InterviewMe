@@ -280,6 +280,53 @@ async def get_current_user(
 
 
 # ============================================================
+# WEBSOCKET AUTHENTICATION
+# ============================================================
+
+async def get_current_user_websocket(
+    token: str,
+    db: AsyncSession
+) -> Optional[User]:
+    """
+    Get current user from JWT token for WebSocket connections.
+    
+    WebSocket connections can't use the standard HTTPBearer dependency,
+    so we need a separate function that takes the token as a string parameter.
+    
+    Args:
+        token: JWT token string from query parameter
+        db: Database session
+        
+    Returns:
+        User object if authenticated, None if invalid token
+    """
+    if not token:
+        return None
+    
+    try:
+        # Decode JWT token
+        payload = decode_jwt_token(token)
+        
+        # Extract user info
+        email, name, oauth_provider, oauth_subject = extract_user_info_from_jwt(payload)
+        
+        # Get or create user
+        user = await get_or_create_user(
+            db=db,
+            email=email,
+            name=name,
+            oauth_provider=oauth_provider,
+            oauth_subject=oauth_subject
+        )
+        
+        return user
+        
+    except (AuthError, DatabaseError):
+        # Invalid token or database error - return None for WebSocket
+        return None
+
+
+# ============================================================
 # UTILITY FUNCTIONS
 # ============================================================
 

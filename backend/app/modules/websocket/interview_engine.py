@@ -1,0 +1,382 @@
+"""
+Interview Session Engine for InterviewMe Platform
+Manages interview flow, state transitions, and turn management
+"""
+import uuid
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from ...database import get_db
+from ...models.interview import Interview, Turn
+from ...models.feedback import Feedback
+from ...models.user import User
+from ..interviews import service as interview_service
+from .connection_manager import ConnectionManager, SessionStatus, MessageType, InterviewSession
+from .interview_conductor import InterviewConductor
+import json
+
+class InterviewEngine:
+    """Core engine for managing interview sessions"""
+    
+    def __init__(self, connection_manager: ConnectionManager, interview_conductor: InterviewConductor):
+        self.connection_manager = connection_manager
+        self.interview_conductor = interview_conductor
+        self.interview_service = interview_service
+        
+    async def start_interview(self, session_id: str, db: AsyncSession) -> Dict[str, Any]:
+        """Start an interview session"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        try:
+            # Get user from database
+            user_stmt = select(User).where(User.id == session.user_id)
+            user_result = await db.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+            if not user:
+                raise ValueError("User not found")
+            
+            # Get interview data from database
+            interview = await interview_service.get_interview_by_id(db, uuid.UUID(session.interview_id), user)
+            if not interview:
+                raise ValueError("Interview not found")
+                
+            # Update interview status to active
+            await interview_service.start_interview(db, uuid.UUID(session.interview_id), user)
+            
+            # Update session status
+            self.connection_manager.update_session_status(session_id, SessionStatus.ACTIVE)
+            
+            # Generate opening question
+            interview_data = {
+                "cv_analysis": interview.cv_analysis,
+                "jd_analysis": interview.jd_analysis,
+                "interview_strategy": interview.interview_strategy
+            }
+            
+            opening_question = await self.interview_conductor.generate_opening_question(interview_data)
+            
+            # Store question in session context
+            self.connection_manager.update_session_context(session_id, {
+                "current_question": opening_question,
+                "interview_data": interview_data,
+                "conversation_history": []
+            })
+            
+            # Send opening question to client
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.AI_QUESTION,
+                "data": {
+                    "question": opening_question["question"],
+                    "question_type": opening_question["question_type"],
+                    "turn_number": opening_question["turn_number"],
+                    "focus_area": opening_question["focus_area"],
+                    "expected_duration": opening_question["expected_duration"]
+                }
+            })
+            
+            # Send session status update
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.SESSION_STATUS,
+                "data": {
+                    "status": SessionStatus.ACTIVE.value,
+                    "message": "Interview started successfully",
+                    "turn_number": 1
+                }
+            })
+            
+            return {
+                "status": "started",
+                "session_id": session_id,
+                "opening_question": opening_question
+            }
+            
+        except Exception as e:
+            await self.connection_manager.send_error(
+                session_id, 
+                f"Failed to start interview: {str(e)}", 
+                "START_INTERVIEW_ERROR"
+            )
+            raise
+    
+    async def process_user_response(
+        self, 
+        session_id: str, 
+        user_response: str, 
+        db: AsyncSession
+    ) -> Dict[str, Any]:
+        """Process user response and generate next question or feedback"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        if session.status != SessionStatus.ACTIVE:
+            raise ValueError("Session is not active")
+            
+        try:
+            # Get session context
+            context = session.context
+            current_question = context.get("current_question", {})
+            interview_data = context.get("interview_data", {})
+            conversation_history = context.get("conversation_history", [])
+            
+            # Evaluate the user response
+            evaluation = await self.interview_conductor.evaluate_response(
+                current_question, user_response, interview_data
+            )
+            
+            # Create turn record
+            turn_data = {
+                "turn_number": current_question.get("turn_number", session.current_turn + 1),
+                "question": current_question.get("question", ""),
+                "question_type": current_question.get("question_type", ""),
+                "response": user_response,
+                "evaluation": evaluation,
+                "timestamp": datetime.utcnow()
+            }
+            
+            # Save turn to database
+            await self._save_turn_to_db(session.interview_id, turn_data, db)
+            
+            # Add to conversation history
+            conversation_history.append(turn_data)
+            session.current_turn += 1
+            
+            # Send evaluation feedback to client
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.AI_FEEDBACK,
+                "data": {
+                    "evaluation": evaluation,
+                    "turn_number": turn_data["turn_number"]
+                }
+            })
+            
+            # Check if interview should end
+            should_end_check = await self.interview_conductor.should_end_interview(
+                conversation_history, session.current_turn
+            )
+            
+            if should_end_check["should_end"]:
+                return await self.end_interview(session_id, db)
+            
+            # Generate next question
+            next_question = await self.interview_conductor.generate_follow_up_question(
+                interview_data, conversation_history, session.current_turn + 1
+            )
+            
+            # Update session context
+            self.connection_manager.update_session_context(session_id, {
+                "current_question": next_question,
+                "conversation_history": conversation_history
+            })
+            
+            # Send next question to client
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.AI_QUESTION,
+                "data": {
+                    "question": next_question["question"],
+                    "question_type": next_question["question_type"],
+                    "turn_number": next_question["turn_number"],
+                    "focus_area": next_question["focus_area"],
+                    "expected_duration": next_question["expected_duration"]
+                }
+            })
+            
+            return {
+                "status": "processed",
+                "evaluation": evaluation,
+                "next_question": next_question,
+                "turn_number": session.current_turn
+            }
+            
+        except Exception as e:
+            await self.connection_manager.send_error(
+                session_id, 
+                f"Failed to process response: {str(e)}", 
+                "PROCESS_RESPONSE_ERROR"
+            )
+            raise
+    
+    async def pause_interview(self, session_id: str) -> Dict[str, Any]:
+        """Pause an active interview session"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        if session.status != SessionStatus.ACTIVE:
+            raise ValueError("Can only pause active sessions")
+            
+        # Update session status
+        self.connection_manager.update_session_status(session_id, SessionStatus.PAUSED)
+        
+        # Send status update to client
+        await self.connection_manager.send_message(session_id, {
+            "type": MessageType.SESSION_STATUS,
+            "data": {
+                "status": SessionStatus.PAUSED.value,
+                "message": "Interview paused",
+                "turn_number": session.current_turn
+            }
+        })
+        
+        return {
+            "status": "paused",
+            "session_id": session_id,
+            "turn_number": session.current_turn
+        }
+    
+    async def resume_interview(self, session_id: str) -> Dict[str, Any]:
+        """Resume a paused interview session"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        if session.status != SessionStatus.PAUSED:
+            raise ValueError("Can only resume paused sessions")
+            
+        # Update session status
+        self.connection_manager.update_session_status(session_id, SessionStatus.ACTIVE)
+        
+        # Send current question again
+        context = session.context
+        current_question = context.get("current_question", {})
+        
+        if current_question:
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.AI_QUESTION,
+                "data": {
+                    "question": current_question["question"],
+                    "question_type": current_question["question_type"],
+                    "turn_number": current_question["turn_number"],
+                    "focus_area": current_question["focus_area"],
+                    "expected_duration": current_question["expected_duration"]
+                }
+            })
+        
+        # Send status update to client
+        await self.connection_manager.send_message(session_id, {
+            "type": MessageType.SESSION_STATUS,
+            "data": {
+                "status": SessionStatus.ACTIVE.value,
+                "message": "Interview resumed",
+                "turn_number": session.current_turn
+            }
+        })
+        
+        return {
+            "status": "resumed",
+            "session_id": session_id,
+            "turn_number": session.current_turn
+        }
+    
+    async def end_interview(self, session_id: str, db: AsyncSession) -> Dict[str, Any]:
+        """End an interview session and generate summary"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        try:
+            # Get user from database
+            user_stmt = select(User).where(User.id == session.user_id)
+            user_result = await db.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+            if not user:
+                raise ValueError("User not found")
+            
+            # Get conversation history
+            context = session.context
+            conversation_history = context.get("conversation_history", [])
+            interview_data = context.get("interview_data", {})
+            
+            # Generate interview summary
+            summary = await self.interview_conductor.generate_interview_summary(
+                interview_data, conversation_history
+            )
+            
+            # Save summary to database
+            await self._save_interview_summary(session.interview_id, summary, db)
+            
+            # Update interview status to completed
+            await interview_service.complete_interview(db, uuid.UUID(session.interview_id), user)
+            
+            # Update session status
+            self.connection_manager.update_session_status(session_id, SessionStatus.COMPLETED)
+            
+            # Send summary to client
+            await self.connection_manager.send_message(session_id, {
+                "type": MessageType.SESSION_STATUS,
+                "data": {
+                    "status": SessionStatus.COMPLETED.value,
+                    "message": "Interview completed",
+                    "summary": summary,
+                    "total_turns": len(conversation_history)
+                }
+            })
+            
+            return {
+                "status": "completed",
+                "session_id": session_id,
+                "summary": summary,
+                "total_turns": len(conversation_history)
+            }
+            
+        except Exception as e:
+            await self.connection_manager.send_error(
+                session_id, 
+                f"Failed to end interview: {str(e)}", 
+                "END_INTERVIEW_ERROR"
+            )
+            raise
+    
+    async def _save_turn_to_db(self, interview_id: str, turn_data: Dict[str, Any], db: AsyncSession):
+        """Save interview turn to database"""
+        turn = Turn(
+            id=str(uuid.uuid4()),
+            interview_id=interview_id,
+            turn_number=turn_data["turn_number"],
+            question=turn_data["question"],
+            question_type=turn_data["question_type"],
+            response=turn_data["response"],
+            evaluation=turn_data["evaluation"],
+            created_at=turn_data["timestamp"]
+        )
+        
+        db.add(turn)
+        await db.commit()
+    
+    async def _save_interview_summary(self, interview_id: str, summary: Dict[str, Any], db: AsyncSession):
+        """Save interview summary as feedback"""
+        feedback = Feedback(
+            id=str(uuid.uuid4()),
+            interview_id=interview_id,
+            feedback_type="final_summary",
+            content=summary,
+            created_at=datetime.utcnow()
+        )
+        
+        db.add(feedback)
+        await db.commit()
+    
+    async def get_session_status(self, session_id: str) -> Dict[str, Any]:
+        """Get current session status and context"""
+        session = self.connection_manager.get_session(session_id)
+        if not session:
+            raise ValueError("Session not found")
+            
+        context = session.context
+        return {
+            "session_id": session_id,
+            "status": session.status.value,
+            "current_turn": session.current_turn,
+            "interview_id": session.interview_id,
+            "user_id": session.user_id,
+            "created_at": session.created_at.isoformat(),
+            "last_activity": session.last_activity.isoformat(),
+            "current_question": context.get("current_question", {}),
+            "conversation_history_length": len(context.get("conversation_history", []))
+        }
+
+# Global interview engine instance will be created in websocket routes
+interview_engine = None

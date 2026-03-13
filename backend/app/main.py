@@ -25,6 +25,7 @@ from app.database import startup_database, shutdown_database, check_database_con
 from app.core.error_handlers import register_exception_handlers
 from app.modules.auth.router import router as auth_router
 from app.modules.interviews.router import router as interviews_router
+from app.modules.websocket.routes import router as websocket_router
 
 
 # ============================================================
@@ -106,6 +107,7 @@ register_exception_handlers(app)
 # ============================================================
 app.include_router(auth_router)
 app.include_router(interviews_router)
+app.include_router(websocket_router)
 
 
 # ============================================================
