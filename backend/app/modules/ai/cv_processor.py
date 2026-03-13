@@ -38,45 +38,45 @@ IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, 
 
 Analyze the following CV text and extract information in this exact JSON structure:
 
-{
+{{
   "candidate_name": "Full name of the candidate",
   "years_of_experience": 0,
   "current_role": "Most recent job title",
   "seniority_level": "junior|mid|senior|lead|principal",
-  "skills": {
+  "skills": {{
     "technical": ["List of technical skills, programming languages, frameworks, tools"],
     "soft": ["Communication", "Leadership", "Problem-solving", etc.]
-  },
+  }},
   "experience": [
-    {
+    {{
       "role": "Job title",
       "company": "Company name",
       "duration": "Time period (e.g., '2 years', '6 months')",
       "key_achievements": ["Notable accomplishments", "Quantified results"],
       "technologies_used": ["Tech stack used in this role"]
-    }
+    }}
   ],
   "education": [
-    {
+    {{
       "degree": "Degree name",
       "institution": "School/University name",
       "year": "Graduation year or 'ongoing'",
       "relevant_coursework": ["Relevant courses if mentioned"]
-    }
+    }}
   ],
   "projects": [
-    {
+    {{
       "name": "Project name",
       "description": "Brief description",
       "technologies": ["Tech stack used"],
       "achievements": ["Key outcomes or metrics"]
-    }
+    }}
   ],
   "certifications": ["List of professional certifications"],
   "notable_points": ["Unique achievements", "Publications", "Awards", "Open source contributions"],
   "potential_gaps": ["Areas where experience might be lacking", "Skills not mentioned but typically expected"],
   "interview_focus_areas": ["Areas to probe deeper", "Strengths to validate", "Gaps to explore"]
-}
+}}
 
 ANALYSIS GUIDELINES:
 1. Be thorough but concise
@@ -137,20 +137,32 @@ async def analyze_cv_with_ai(cv_text: str) -> Dict[str, Any]:
         ai_response = response.choices[0].message.content.strip()
         
         # Parse JSON response
+        cv_analysis = None
         try:
             cv_analysis = json.loads(ai_response)
         except json.JSONDecodeError as e:
             # Try to extract JSON from response if it's wrapped in markdown
-            if "```json" in ai_response:
-                json_start = ai_response.find("```json") + 7
+            if "```" in ai_response:
+                # Handle both ```json and ``` formats
+                if "```json" in ai_response:
+                    json_start = ai_response.find("```json") + 7
+                else:
+                    json_start = ai_response.find("```") + 3
+                
                 json_end = ai_response.find("```", json_start)
                 if json_end > json_start:
-                    ai_response = ai_response[json_start:json_end].strip()
-                    cv_analysis = json.loads(ai_response)
+                    json_content = ai_response[json_start:json_end].strip()
+                    try:
+                        cv_analysis = json.loads(json_content)
+                    except json.JSONDecodeError as e2:
+                        raise AIServiceError(f"Failed to parse extracted JSON: {e2}. Content: {json_content[:100]}...")
                 else:
-                    raise AIServiceError(f"Failed to parse AI response as JSON: {e}")
+                    raise AIServiceError(f"Failed to find closing markdown: {e}. Content: {ai_response[:100]}...")
             else:
-                raise AIServiceError(f"Failed to parse AI response as JSON: {e}")
+                raise AIServiceError(f"Failed to parse AI response as JSON: {e}. Content: {ai_response[:100]}...")
+        
+        if cv_analysis is None:
+            raise AIServiceError("Failed to parse CV analysis from AI response")
         
         # Validate required fields
         required_fields = ["candidate_name", "years_of_experience", "skills", "experience"]

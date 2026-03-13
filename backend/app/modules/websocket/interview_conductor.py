@@ -57,7 +57,25 @@ Return ONLY a JSON object with this structure:
                 max_tokens=500
             )
             
-            result = json.loads(response.choices[0].message.content.strip())
+            try:
+                result = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError:
+                # Try to extract JSON from markdown if needed
+                content = response.choices[0].message.content.strip()
+                if "```" in content:
+                    if "```json" in content:
+                        json_start = content.find("```json") + 7
+                    else:
+                        json_start = content.find("```") + 3
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        content = content[json_start:json_end].strip()
+                        result = json.loads(content)
+                    else:
+                        raise
+                else:
+                    raise
+            
             result["turn_number"] = 1
             return result
             
@@ -133,7 +151,25 @@ Return ONLY a JSON object with this structure:
                 max_tokens=600
             )
             
-            result = json.loads(response.choices[0].message.content.strip())
+            try:
+                result = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError:
+                # Try to extract JSON from markdown if needed
+                content = response.choices[0].message.content.strip()
+                if "```" in content:
+                    if "```json" in content:
+                        json_start = content.find("```json") + 7
+                    else:
+                        json_start = content.find("```") + 3
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        content = content[json_start:json_end].strip()
+                        result = json.loads(content)
+                    else:
+                        raise
+                else:
+                    raise
+            
             result["turn_number"] = current_turn
             return result
             
@@ -202,7 +238,25 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
                 max_tokens=800
             )
             
-            result = json.loads(response.choices[0].message.content.strip())
+            try:
+                result = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError:
+                # Try to extract JSON from markdown if needed
+                content = response.choices[0].message.content.strip()
+                if "```" in content:
+                    if "```json" in content:
+                        json_start = content.find("```json") + 7
+                    else:
+                        json_start = content.find("```") + 3
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        content = content[json_start:json_end].strip()
+                        result = json.loads(content)
+                    else:
+                        raise
+                else:
+                    raise
+            
             return result
             
         except Exception as e:
@@ -303,7 +357,25 @@ Provide a comprehensive interview summary. Return ONLY a JSON object:
                 max_tokens=1000
             )
             
-            result = json.loads(response.choices[0].message.content.strip())
+            try:
+                result = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError:
+                # Try to extract JSON from markdown if needed
+                content = response.choices[0].message.content.strip()
+                if "```" in content:
+                    if "```json" in content:
+                        json_start = content.find("```json") + 7
+                    else:
+                        json_start = content.find("```") + 3
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        content = content[json_start:json_end].strip()
+                        result = json.loads(content)
+                    else:
+                        raise
+                else:
+                    raise
+            
             result["interview_duration"] = len(conversation_history)
             result["total_turns"] = len(conversation_history)
             return result

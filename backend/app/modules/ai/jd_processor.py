@@ -38,7 +38,7 @@ IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, 
 
 Analyze the following job description and extract information in this exact JSON structure:
 
-{
+{{
   "role_title": "Exact job title from the posting",
   "company": "Company name if mentioned",
   "department": "Department or team if specified",
@@ -48,33 +48,33 @@ Analyze the following job description and extract information in this exact JSON
   "salary_range": "Salary information if mentioned",
   "required_skills": ["Must-have technical skills", "Programming languages", "Frameworks", "Tools"],
   "preferred_skills": ["Nice-to-have skills", "Bonus qualifications"],
-  "required_experience": {
+  "required_experience": {{
     "years_minimum": 0,
     "years_preferred": 0,
     "specific_domains": ["Industry experience", "Specific technology experience"]
-  },
+  }},
   "key_responsibilities": ["Primary job duties", "What they'll be doing day-to-day"],
   "technical_requirements": ["Specific technical tasks", "System design needs", "Architecture requirements"],
   "soft_skills": ["Communication", "Leadership", "Collaboration", "Problem-solving"],
   "education_requirements": ["Degree requirements", "Certifications", "Educational preferences"],
-  "company_culture": {
+  "company_culture": {{
     "values": ["Company values mentioned"],
     "work_style": "collaborative|independent|hybrid",
     "pace": "fast-paced|steady|flexible",
     "size": "startup|small|medium|large|enterprise"
-  },
+  }},
   "benefits": ["Compensation and benefits mentioned"],
   "growth_opportunities": ["Career development", "Learning opportunities"],
   "interview_focus_areas": ["Technical areas to assess", "Behavioral competencies to evaluate"],
-  "question_categories": {
+  "question_categories": {{
     "technical": ["Specific technical topics to cover"],
     "behavioral": ["Behavioral scenarios relevant to role"],
     "system_design": ["System design topics if applicable"],
     "coding": ["Programming challenges if applicable"]
-  },
+  }},
   "red_flags_to_watch": ["Potential concerns based on role requirements"],
   "success_metrics": ["How success will be measured in this role"]
-}
+}}
 
 ANALYSIS GUIDELINES:
 1. Infer seniority level from responsibilities, requirements, and language used
@@ -139,8 +139,13 @@ async def analyze_jd_with_ai(jd_text: str) -> Dict[str, Any]:
             jd_analysis = json.loads(ai_response)
         except json.JSONDecodeError as e:
             # Try to extract JSON from response if it's wrapped in markdown
-            if "```json" in ai_response:
-                json_start = ai_response.find("```json") + 7
+            if "```" in ai_response:
+                # Handle both ```json and ``` formats
+                if "```json" in ai_response:
+                    json_start = ai_response.find("```json") + 7
+                else:
+                    json_start = ai_response.find("```") + 3
+                
                 json_end = ai_response.find("```", json_start)
                 if json_end > json_start:
                     ai_response = ai_response[json_start:json_end].strip()
@@ -360,8 +365,8 @@ def compare_cv_to_jd(cv_analysis: Dict[str, Any], jd_analysis: Dict[str, Any]) -
     
     # Calculate experience fit
     cv_years = cv_analysis.get("years_of_experience", 0)
-    required_years = jd_analysis.get("required_experience", {}).get("years_minimum", 0)
-    preferred_years = jd_analysis.get("required_experience", {}).get("years_preferred", 0)
+    required_years = jd_analysis.get("required_experience", {}).get("years_minimum", 0) or 0
+    preferred_years = jd_analysis.get("required_experience", {}).get("years_preferred", 0) or 0
     
     # Calculate seniority fit
     cv_seniority = cv_analysis.get("seniority_level", "junior")
