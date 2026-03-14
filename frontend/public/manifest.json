@@ -1,0 +1,10 @@
+{
+  "name": "InterviewMe",
+  "short_name": "InterviewMe",
+  "description": "AI-Powered Mock Interview Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": []
+}

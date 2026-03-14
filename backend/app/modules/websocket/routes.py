@@ -32,16 +32,23 @@ async def websocket_interview_endpoint(
     """WebSocket endpoint for real-time interview sessions"""
     
     session_id = None
+    print(f"🔵 WebSocket connection attempt for interview {interview_id}")
+    
     try:
         # Authenticate user via token
+        print(f"🔑 Authenticating user...")
         user = await get_current_user_websocket(token, db)
         if not user:
+            print(f"❌ Authentication failed for interview {interview_id}")
             await websocket.close(code=4001, reason="Authentication failed")
             return
+        
+        print(f"✅ User {user.id} authenticated successfully")
             
         # Connect to WebSocket and create session
+        print(f"🔌 Accepting WebSocket connection...")
         session_id = await connection_manager.connect(websocket, user.id, interview_id)
-        print(f"User {user.id} connected to interview {interview_id} with session {session_id}")
+        print(f"✅ User {user.id} connected to interview {interview_id} with session {session_id}")
         
         # Main message handling loop
         while True:

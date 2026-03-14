@@ -1,0 +1,188 @@
+/* Google Fonts - must come before all other imports */
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Lexend:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== SaaS Color Palette ========== */
+:root {
+  /* Backgrounds */
+  --background: #FFFFFF;
+  --background-subtle: #F8FAFC;
+  --card-background: #FFFFFF;
+
+  /* Borders */
+  --border: #E5E7EB;
+  --border-light: #F1F5F9;
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  /* Chat Bubbles */
+  --user-bubble: #E2E8F0;
+  --ai-bubble: #F1F5F9;
+
+  /* Accents - Classic Teal */
+  --primary: #0D9488;
+  --primary-hover: #0F766E;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #F1F5F9;
+  --secondary-hover: #E2E8F0;
+  --secondary-foreground: #0F172A;
+
+  --destructive: #EF4444;
+  --destructive-hover: #DC2626;
+  --destructive-foreground: #FFFFFF;
+
+  /* Success/Warning */
+  --success: #10B981;
+  --success-bg: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-bg: #FFFBEB;
+  --error: #EF4444;
+  --error-bg: #FEF2F2;
+
+  /* Shadows */
+  --shadow-sm: 0px 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0px 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0px 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--text-primary);
+  --font-sans: 'Lexend', var(--font-geist-sans);
+  --font-serif: 'Lora', Georgia, serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ========== Base Styles ========== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: 'Lexend', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========== Typography ========== */
+.font-heading {
+  font-family: 'Lora', Georgia, serif;
+}
+
+.font-body {
+  font-family: 'Lexend', system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Lora', Georgia, serif;
+  color: var(--text-primary);
+}
+
+/* ========== Utility Classes ========== */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.bg-subtle {
+  background: var(--background-subtle);
+}
+
+.border-default {
+  border-color: var(--border);
+}
+
+/* ========== Card Styling ========== */
+.card {
+  background: var(--card-background);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ========== Focus States ========== */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ========== Transitions ========== */
+.transition-default {
+  transition: all 200ms ease;
+}
+
+/* ========== Chat Bubbles ========== */
+.chat-bubble-user {
+  background: var(--user-bubble);
+  border-radius: var(--radius-lg);
+}
+
+.chat-bubble-ai {
+  background: var(--ai-bubble);
+  border-radius: var(--radius-lg);
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease;
+}
