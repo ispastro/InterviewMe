@@ -432,7 +432,7 @@ class InterviewEngine:
         """Save interview turn to database"""
         turn = Turn(
             id=uuid.uuid4(),
-            interview_id=interview_id,
+            interview_id=uuid.UUID(interview_id),
             turn_number=turn_data["turn_number"],
             phase=_map_question_type_to_phase(turn_data.get("question_type", "")),
             ai_question=turn_data["question"],
@@ -455,7 +455,7 @@ class InterviewEngine:
 
         feedback = Feedback(
             id=uuid.uuid4(),
-            interview_id=interview_id,
+            interview_id=uuid.UUID(interview_id),
             overall_score=float(summary.get("overall_score", 0)) * 10,
             summary=summary.get("recommendation_reason") or summary.get("overall_rating"),
             strengths=strengths,
