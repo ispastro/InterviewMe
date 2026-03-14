@@ -6,23 +6,45 @@ import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from ...database import get_db
-from ...models.interview import Interview, Turn
+from sqlalchemy import select
+from ...models.interview import Interview, Turn, InterviewPhase
+from ...models import InterviewStatus
 from ...models.feedback import Feedback
 from ...models.user import User
 from ..interviews import service as interview_service
 from .connection_manager import ConnectionManager, SessionStatus, MessageType, InterviewSession
 from .interview_conductor import InterviewConductor
+from .conversation_memory import ConversationMemory
 import json
 
+
+def _map_question_type_to_phase(question_type: str) -> str:
+    """Map conductor question types to persisted interview phases."""
+    if not question_type:
+        return InterviewPhase.TECHNICAL.value
+
+    q = question_type.lower()
+    if q in ("opening", "intro", "introduction"):
+        return InterviewPhase.INTRO.value
+    if q in ("behavioral", "situational"):
+        return InterviewPhase.BEHAVIORAL.value
+    if q in ("technical", "coding"):
+        return InterviewPhase.TECHNICAL.value
+    if q in ("deep_dive", "deep-dive"):
+        return InterviewPhase.DEEP_DIVE.value
+    if q in ("closing", "wrap_up", "wrap-up"):
+        return InterviewPhase.CLOSING.value
+    return InterviewPhase.TECHNICAL.value
+
 class InterviewEngine:
-    """Core engine for managing interview sessions"""
+    """Core engine for managing interview sessions with agentic memory"""
     
     def __init__(self, connection_manager: ConnectionManager, interview_conductor: InterviewConductor):
         self.connection_manager = connection_manager
         self.interview_conductor = interview_conductor
         self.interview_service = interview_service
+        # Memory instances per session: {session_id: ConversationMemory}
+        self.session_memories: Dict[str, ConversationMemory] = {}
         
     async def start_interview(self, session_id: str, db: AsyncSession) -> Dict[str, Any]:
         """Start an interview session"""
@@ -43,20 +65,34 @@ class InterviewEngine:
             if not interview:
                 raise ValueError("Interview not found")
                 
-            # Update interview status to active
-            await interview_service.start_interview(db, uuid.UUID(session.interview_id), user)
+            # Start only when first entering live session; allow reconnects for in-progress interviews.
+            if interview.status == InterviewStatus.READY:
+                interview = await interview_service.start_interview(db, uuid.UUID(session.interview_id), user)
+            elif interview.status != InterviewStatus.IN_PROGRESS:
+                raise ValueError(f"Interview is in invalid state for websocket start: {interview.status}")
             
             # Update session status
             self.connection_manager.update_session_status(session_id, SessionStatus.ACTIVE)
             
             # Generate opening question
+            strategy = {}
+            if isinstance(interview.interview_config, dict):
+                strategy = interview.interview_config.get("strategy", {})
+
             interview_data = {
                 "cv_analysis": interview.cv_analysis,
                 "jd_analysis": interview.jd_analysis,
-                "interview_strategy": interview.interview_strategy
+                "interview_strategy": strategy
             }
             
             opening_question = await self.interview_conductor.generate_opening_question(interview_data)
+            
+            # Initialize conversation memory for this session
+            memory = ConversationMemory(
+                cv_analysis=interview.cv_analysis,
+                jd_analysis=interview.jd_analysis
+            )
+            self.session_memories[session_id] = memory
             
             # Store question in session context
             self.connection_manager.update_session_context(session_id, {
@@ -144,14 +180,57 @@ class InterviewEngine:
             conversation_history.append(turn_data)
             session.current_turn += 1
             
+            # Add to conversation memory for agentic behavior
+            memory = self.session_memories.get(session_id)
+            if memory:
+                memory.add_turn(turn_data)
+            
             # Send evaluation feedback to client
             await self.connection_manager.send_message(session_id, {
                 "type": MessageType.AI_FEEDBACK,
                 "data": {
-                    "evaluation": evaluation,
-                    "turn_number": turn_data["turn_number"]
+                    "question_id": f"turn-{turn_data['turn_number']}",
+                    "turn_number": turn_data["turn_number"],
+                    **evaluation,
                 }
             })
+            
+            # Check if we should probe deeper (agentic decision)
+            memory = self.session_memories.get(session_id)
+            if memory:
+                should_probe, probe_reason = memory.should_probe_deeper(turn_data)
+                
+                if should_probe:
+                    # Generate probing follow-up question
+                    probe_question = await self.interview_conductor.generate_probe_question(
+                        turn_data, probe_reason, interview_data
+                    )
+                    
+                    # Send probe question (doesn't increment turn)
+                    await self.connection_manager.send_message(session_id, {
+                        "type": MessageType.AI_QUESTION,
+                        "data": {
+                            "question": probe_question["question"],
+                            "question_type": "probe",
+                            "turn_number": turn_data["turn_number"],
+                            "focus_area": turn_data.get("focus_area", ""),
+                            "expected_duration": 2,
+                            "is_probe": True,
+                            "probe_reason": probe_reason
+                        }
+                    })
+                    
+                    # Update context with probe question
+                    self.connection_manager.update_session_context(session_id, {
+                        "current_question": probe_question
+                    })
+                    
+                    return {
+                        "status": "probing",
+                        "probe_question": probe_question,
+                        "probe_reason": probe_reason,
+                        "turn_number": session.current_turn
+                    }
             
             # Check if interview should end
             should_end_check = await self.interview_conductor.should_end_interview(
@@ -161,9 +240,24 @@ class InterviewEngine:
             if should_end_check["should_end"]:
                 return await self.end_interview(session_id, db)
             
-            # Generate next question
+            # Get intelligent context from memory
+            relevant_context = None
+            next_focus_recommendation = None
+            if memory:
+                # Get recommendation for next focus area
+                next_focus_recommendation = memory.get_next_focus_recommendation()
+                next_focus_area = next_focus_recommendation.get("priority_topics", [""])[0] if next_focus_recommendation.get("priority_topics") else ""
+                
+                # Get relevant context for next question
+                relevant_context = memory.get_relevant_context(next_focus_area)
+            
+            # Generate next question with enhanced context
             next_question = await self.interview_conductor.generate_follow_up_question(
-                interview_data, conversation_history, session.current_turn + 1
+                interview_data, 
+                conversation_history, 
+                session.current_turn + 1,
+                memory_context=relevant_context,
+                focus_recommendation=next_focus_recommendation
             )
             
             # Update session context
@@ -301,6 +395,10 @@ class InterviewEngine:
             # Update interview status to completed
             await interview_service.complete_interview(db, uuid.UUID(session.interview_id), user)
             
+            # Clean up session memory
+            if session_id in self.session_memories:
+                del self.session_memories[session_id]
+            
             # Update session status
             self.connection_manager.update_session_status(session_id, SessionStatus.COMPLETED)
             
@@ -333,31 +431,50 @@ class InterviewEngine:
     async def _save_turn_to_db(self, interview_id: str, turn_data: Dict[str, Any], db: AsyncSession):
         """Save interview turn to database"""
         turn = Turn(
-            id=str(uuid.uuid4()),
+            id=uuid.uuid4(),
             interview_id=interview_id,
             turn_number=turn_data["turn_number"],
-            question=turn_data["question"],
-            question_type=turn_data["question_type"],
-            response=turn_data["response"],
+            phase=_map_question_type_to_phase(turn_data.get("question_type", "")),
+            ai_question=turn_data["question"],
+            user_answer=turn_data["response"],
             evaluation=turn_data["evaluation"],
             created_at=turn_data["timestamp"]
         )
         
         db.add(turn)
-        await db.commit()
+        await db.flush()
     
     async def _save_interview_summary(self, interview_id: str, summary: Dict[str, Any], db: AsyncSession):
         """Save interview summary as feedback"""
+        strengths = [{"area": s, "score": 75} for s in summary.get("key_strengths", [])]
+        weaknesses = [{"area": w, "score": 45} for w in summary.get("key_concerns", [])]
+        suggestions = [
+            {"action": step, "priority": "medium"}
+            for step in summary.get("next_steps", [])
+        ]
+
         feedback = Feedback(
-            id=str(uuid.uuid4()),
+            id=uuid.uuid4(),
             interview_id=interview_id,
-            feedback_type="final_summary",
-            content=summary,
+            overall_score=float(summary.get("overall_score", 0)) * 10,
+            summary=summary.get("recommendation_reason") or summary.get("overall_rating"),
+            strengths=strengths,
+            weaknesses=weaknesses,
+            suggestions=suggestions,
+            phase_scores={
+                "intro": 0,
+                "behavioral": 0,
+                "technical": float(summary.get("overall_score", 0)) * 10,
+                "deep_dive": 0,
+                "closing": 0,
+            },
+            detailed_analysis=json.dumps(summary),
+            generation_metadata={"source": "websocket_summary"},
             created_at=datetime.utcnow()
         )
         
         db.add(feedback)
-        await db.commit()
+        await db.flush()
     
     async def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """Get current session status and context"""
