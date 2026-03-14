@@ -95,7 +95,9 @@ Return ONLY a JSON object with this structure:
         self, 
         interview_data: Dict[str, Any], 
         conversation_history: List[Dict[str, Any]], 
-        current_turn: int
+        current_turn: int,
+        memory_context: Optional[Dict[str, Any]] = None,
+        focus_recommendation: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Generate follow-up question based on conversation history"""
         
@@ -103,14 +105,64 @@ Return ONLY a JSON object with this structure:
         jd_analysis = interview_data.get("jd_analysis", {})
         interview_strategy = interview_data.get("interview_strategy", {})
         
-        # Format conversation history
+        # Use memory context if available (AGENTIC ENHANCEMENT)
+        if memory_context:
+            recent_turns = memory_context.get("recent_turns", conversation_history[-3:])
+            performance_summary = memory_context.get("performance_summary", {})
+            detected_patterns = memory_context.get("detected_patterns", {})
+            uncovered_topics = memory_context.get("uncovered_topics", [])
+        else:
+            recent_turns = conversation_history[-3:]
+            performance_summary = {}
+            detected_patterns = {}
+            uncovered_topics = []
+        
+        # Format conversation history with richer context
         history_text = ""
-        for turn in conversation_history[-3:]:  # Last 3 turns for context
+        for turn in recent_turns:
             history_text += f"Q{turn.get('turn_number', 0)}: {turn.get('question', '')}\n"
-            history_text += f"A{turn.get('turn_number', 0)}: {turn.get('response', '')}\n\n"
+            history_text += f"A{turn.get('turn_number', 0)}: {turn.get('response', '')}\n"
+            eval_score = turn.get('evaluation', {}).get('overall_score', 0)
+            history_text += f"Score: {eval_score}/10\n\n"
+        
+        # Build agentic prompt with memory insights
+        performance_text = ""
+        if performance_summary:
+            performance_text = f"""
+
+CANDIDATE PERFORMANCE SO FAR:
+- Average Score: {performance_summary.get('average_score', 0)}/10
+- Trend: {performance_summary.get('score_trend', 'stable')}
+- Technical Depth: {performance_summary.get('technical_depth_avg', 0)}/10
+- Communication: {performance_summary.get('communication_clarity_avg', 0)}/10
+- Confidence Level: {performance_summary.get('confidence_level', 'medium')}
+"""
+        
+        patterns_text = ""
+        if detected_patterns:
+            if detected_patterns.get('strengths'):
+                patterns_text += f"\n✓ IDENTIFIED STRENGTHS: {', '.join(detected_patterns['strengths'][:3])}"
+            if detected_patterns.get('weaknesses'):
+                patterns_text += f"\n⚠ AREAS NEEDING IMPROVEMENT: {', '.join(detected_patterns['weaknesses'][:3])}"
+            if detected_patterns.get('red_flags'):
+                patterns_text += f"\n🚩 RED FLAGS: {len(detected_patterns['red_flags'])} detected"
+        
+        focus_text = ""
+        if focus_recommendation:
+            focus_text = f"""
+
+RECOMMENDED FOCUS:
+{focus_recommendation.get('recommendation', '')}
+- Priority Topics: {', '.join(focus_recommendation.get('priority_topics', [])[:3])}
+- Weak Areas to Probe: {', '.join(focus_recommendation.get('weak_areas_to_probe', [])[:2])}
+"""
+        
+        uncovered_text = ""
+        if uncovered_topics:
+            uncovered_text = f"\n\nUNCOVERED REQUIRED TOPICS: {', '.join(uncovered_topics[:5])}"
         
         prompt = f"""
-You are an expert interviewer conducting a job interview. Generate the next question based on the conversation so far.
+You are an expert AI interviewer with deep memory and context awareness. You conduct natural, conversational interviews that adapt to the candidate's performance.
 
 CANDIDATE PROFILE:
 {json.dumps(cv_analysis, indent=2)}
@@ -120,23 +172,35 @@ JOB REQUIREMENTS:
 
 INTERVIEW STRATEGY:
 {json.dumps(interview_strategy, indent=2)}
+{performance_text}
+{patterns_text}
+{focus_text}
+{uncovered_text}
 
-CONVERSATION HISTORY:
+RECENT CONVERSATION:
 {history_text}
 
 CURRENT TURN: {current_turn}
 
-Generate the next question that:
-1. Builds on the previous responses
-2. Explores relevant skills/experience
-3. Follows the interview strategy
-4. Is appropriate for turn {current_turn}
-5. Maintains natural conversation flow
+🎯 YOUR MISSION:
+Generate the next question that feels like a REAL human interviewer who:
+1. **Remembers everything** - Reference specific things they said earlier
+2. **Adapts difficulty** - If they're doing well, challenge them harder. If struggling, ease up.
+3. **Probes intelligently** - Follow up on weak areas, validate strengths
+4. **Connects to the job** - Tie questions to actual job requirements from the JD
+5. **Sounds natural** - Use conversational transitions like "That's interesting...", "Building on that...", "I noticed you mentioned..."
+6. **Covers gaps** - Focus on uncovered required topics
 
-Return ONLY a JSON object with this structure:
+⚡ AGENTIC BEHAVIOR:
+- If they showed weakness in an area, probe deeper with a specific scenario
+- If they're performing well, increase difficulty with edge cases or system design
+- If they mentioned something from their CV, ask them to elaborate with specifics
+- If they're struggling, provide a hint or rephrase to build confidence
+
+Return ONLY a JSON object:
 {{
-    "question": "The follow-up question text",
-    "question_type": "technical|behavioral|situational|closing",
+    "question": "[Natural transition] + [The actual question]",
+    "question_type": "technical|behavioral|situational|deep_dive|closing",
     "focus_area": "specific skill or competency being assessed",
     "expected_duration": 3,
     "evaluation_criteria": ["criterion1", "criterion2", "criterion3"]
@@ -185,6 +249,103 @@ Return ONLY a JSON object with this structure:
                 "turn_number": current_turn
             }
     
+    async def generate_probe_question(
+        self,
+        turn_data: Dict[str, Any],
+        probe_reason: str,
+        interview_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate a probing follow-up question based on the last response"""
+        
+        question = turn_data.get('question', '')
+        response = turn_data.get('response', '')
+        evaluation = turn_data.get('evaluation', {})
+        focus_area = turn_data.get('focus_area', '')
+        
+        prompt = f"""
+You are an expert interviewer who just received an answer that needs clarification or deeper exploration.
+
+ORIGINAL QUESTION:
+{question}
+
+CANDIDATE'S RESPONSE:
+{response}
+
+EVALUATION:
+- Score: {evaluation.get('overall_score', 0)}/10
+- Feedback: {evaluation.get('feedback', '')}
+
+REASON FOR PROBING:
+{probe_reason}
+
+FOCUS AREA: {focus_area}
+
+🔍 YOUR TASK:
+Generate a natural, conversational follow-up question that:
+1. **Acknowledges their answer** - Start with "Interesting...", "I see...", "That makes sense, but..."
+2. **Probes deeper** - Ask for specifics, examples, or clarification
+3. **Feels natural** - Not interrogative, but genuinely curious
+4. **Targets the gap** - Address the specific reason we're probing
+
+EXAMPLES:
+- If vague: "That's a good start. Can you walk me through a specific example of when you did this?"
+- If lacks technical depth: "Interesting approach. How exactly did you implement the caching layer? What data structures did you use?"
+- If contradicts CV: "I noticed your CV mentions experience with Kubernetes, but you mentioned you haven't worked with container orchestration. Can you clarify?"
+- If red flag: "You mentioned you're not familiar with that. How would you approach learning it if this role required it?"
+
+Return ONLY a JSON object:
+{{
+    "question": "[Acknowledgment] + [Probing question]",
+    "question_type": "probe",
+    "focus_area": "{focus_area}",
+    "expected_duration": 2,
+    "evaluation_criteria": ["specificity", "technical_depth", "clarity"]
+}}
+"""
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.settings.GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=400
+            )
+            
+            try:
+                result = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError:
+                content = response.choices[0].message.content.strip()
+                if "```" in content:
+                    if "```json" in content:
+                        json_start = content.find("```json") + 7
+                    else:
+                        json_start = content.find("```") + 3
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        content = content[json_start:json_end].strip()
+                        result = json.loads(content)
+                    else:
+                        raise
+                else:
+                    raise
+            
+            result["turn_number"] = turn_data.get('turn_number', 0)
+            result["is_probe"] = True
+            return result
+            
+        except Exception as e:
+            print(f"Error generating probe question: {e}")
+            # Fallback probe question
+            return {
+                "question": "Can you elaborate on that with a specific example from your experience?",
+                "question_type": "probe",
+                "focus_area": focus_area,
+                "expected_duration": 2,
+                "evaluation_criteria": ["specificity", "clarity"],
+                "turn_number": turn_data.get('turn_number', 0),
+                "is_probe": True
+            }
+    
     async def evaluate_response(
         self, 
         question_data: Dict[str, Any], 
@@ -212,8 +373,11 @@ CANDIDATE'S RESPONSE:
 CANDIDATE PROFILE:
 {json.dumps(cv_analysis, indent=2)}
 
-JOB REQUIREMENTS:
+JOB REQUIREMENTS & NUANCES:
 {json.dumps(jd_analysis, indent=2)}
+
+INTERVIEW STRATEGY:
+{json.dumps(interview_data.get('interview_strategy', {}), indent=2)}
 
 Evaluate the response and provide feedback. Return ONLY a JSON object:
 {{
