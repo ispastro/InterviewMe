@@ -20,6 +20,19 @@ import uuid
 from app.models.interview import InterviewStatus, InterviewPhase
 
 
+def _enum_or_str(value: Any) -> Any:
+    """Return enum value when available, otherwise return the original value."""
+    return value.value if hasattr(value, "value") else value
+
+
+def _loaded_attr(obj: Any, attr_name: str) -> Any:
+    """Get relationship attribute only if already loaded, else return None."""
+    state_dict = getattr(obj, "__dict__", {})
+    if attr_name in state_dict:
+        return state_dict.get(attr_name)
+    return None
+
+
 # ============================================================
 # REQUEST SCHEMAS
 # ============================================================
@@ -301,19 +314,22 @@ class InterviewErrorResponse(BaseModel):
 
 def create_interview_summary_response(interview) -> InterviewSummaryResponse:
     """Create interview summary response from model."""
+    loaded_turns = _loaded_attr(interview, 'turns')
+    loaded_feedback = _loaded_attr(interview, 'feedback')
+
     return InterviewSummaryResponse(
         id=str(interview.id),
         user_id=str(interview.user_id),
-        status=interview.status.value,
+        status=_enum_or_str(interview.status),
         target_role=interview.target_role,
         target_company=interview.target_company,
-        current_phase=interview.current_phase.value if interview.current_phase else None,
+        current_phase=_enum_or_str(interview.current_phase) if interview.current_phase else None,
         current_turn=interview.current_turn,
         created_at=interview.created_at,
         completed_at=interview.completed_at,
         total_duration_seconds=interview.total_duration_seconds,
-        turn_count=len(interview.turns) if hasattr(interview, 'turns') and interview.turns else 0,
-        has_feedback=hasattr(interview, 'feedback') and interview.feedback is not None
+        turn_count=len(loaded_turns) if loaded_turns else 0,
+        has_feedback=loaded_feedback is not None
     )
 
 
@@ -322,19 +338,22 @@ def create_interview_detail_response(
     include_analysis: bool = False
 ) -> InterviewDetailResponse:
     """Create detailed interview response from model."""
+    loaded_turns = _loaded_attr(interview, 'turns')
+    loaded_feedback = _loaded_attr(interview, 'feedback')
+
     response_data = {
         "id": str(interview.id),
         "user_id": str(interview.user_id),
-        "status": interview.status.value,
+        "status": _enum_or_str(interview.status),
         "target_role": interview.target_role,
         "target_company": interview.target_company,
-        "current_phase": interview.current_phase.value if interview.current_phase else None,
+        "current_phase": _enum_or_str(interview.current_phase) if interview.current_phase else None,
         "current_turn": interview.current_turn,
         "created_at": interview.created_at,
         "completed_at": interview.completed_at,
         "total_duration_seconds": interview.total_duration_seconds,
-        "turn_count": len(interview.turns) if hasattr(interview, 'turns') and interview.turns else 0,
-        "has_feedback": hasattr(interview, 'feedback') and interview.feedback is not None
+        "turn_count": len(loaded_turns) if loaded_turns else 0,
+        "has_feedback": loaded_feedback is not None
     }
     
     if include_analysis:

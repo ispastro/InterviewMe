@@ -47,7 +47,10 @@ class Settings(BaseSettings):
     # ============================================================
     # APPLICATION SETTINGS
     # ============================================================
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]  # Frontend URLs
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]  # Frontend URLs
     ENVIRONMENT: str = "development"    # development, staging, production
     APP_DEBUG: bool = False             # Enable debug logging (renamed to avoid conflicts)
     

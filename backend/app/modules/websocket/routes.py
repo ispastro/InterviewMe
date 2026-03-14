@@ -182,8 +182,7 @@ async def get_session_status(session_id: str):
 @router.post("/sessions/{session_id}/end")
 async def force_end_session(
     session_id: str, 
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_websocket)
+    db: AsyncSession = Depends(get_db)
 ):
     """Force end a session (admin/debugging endpoint)"""
     try:

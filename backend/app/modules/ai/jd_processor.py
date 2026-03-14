@@ -13,6 +13,7 @@ Engineering decisions:
 """
 
 import json
+import re
 from typing import Dict, Any, Optional, List
 from groq import AsyncGroq
 
@@ -65,13 +66,14 @@ Analyze the following job description and extract information in this exact JSON
   }},
   "benefits": ["Compensation and benefits mentioned"],
   "growth_opportunities": ["Career development", "Learning opportunities"],
-  "interview_focus_areas": ["Technical areas to assess", "Behavioral competencies to evaluate"],
+  "interview_focus_areas": ["Detailed list of technical topics, concepts, and behavioral traits to assess. Be as specific as possible (e.g., 'Distributed Systems Consistency' instead of 'System Design')"],
   "question_categories": {{
     "technical": ["Specific technical topics to cover"],
     "behavioral": ["Behavioral scenarios relevant to role"],
     "system_design": ["System design topics if applicable"],
     "coding": ["Programming challenges if applicable"]
   }},
+  "role_complexity_nuance": "A brief description of what makes this specific role unique or particularly challenging (e.g. 'requires balancing legacy migration with greenfield development' or 'heavy focus on low-latency optimization')",
   "red_flags_to_watch": ["Potential concerns based on role requirements"],
   "success_metrics": ["How success will be measured in this role"]
 }}
@@ -197,12 +199,81 @@ async def analyze_jd_with_ai(jd_text: str) -> Dict[str, Any]:
         
         return jd_analysis
         
-    except AIServiceError:
+    except AIServiceError as e:
+        if settings.is_development:
+            return build_fallback_jd_analysis(jd_text, str(e))
         raise
     except ValidationError:
         raise
     except Exception as e:
+        if settings.is_development:
+            return build_fallback_jd_analysis(jd_text, str(e))
         raise AIServiceError(f"Job description analysis failed: {str(e)}")
+
+
+def build_fallback_jd_analysis(jd_text: str, error_detail: str) -> Dict[str, Any]:
+    """Generate deterministic JD analysis when AI is unavailable in development."""
+    lowered = jd_text.lower()
+
+    role_title = "Software Engineer"
+    role_match = re.search(r"(senior|junior|lead|principal)?\s*(software|backend|frontend|full stack)\s*engineer", lowered)
+    if role_match:
+        role_title = role_match.group(0).title()
+
+    tech_candidates = [
+        "python", "javascript", "typescript", "java", "go", "react", "node",
+        "fastapi", "django", "postgresql", "redis", "docker", "kubernetes", "aws"
+    ]
+    required = [skill for skill in tech_candidates if re.search(rf"\b{re.escape(skill)}\b", lowered)]
+
+    years_match = re.search(r"(\d+)\s*\+?\s*(years?|yrs?)", lowered)
+    years_minimum = int(years_match.group(1)) if years_match else 0
+
+    return {
+        "role_title": role_title,
+        "company": None,
+        "department": None,
+        "seniority_level": "senior" if "senior" in lowered else "mid",
+        "employment_type": "full-time",
+        "location": None,
+        "salary_range": None,
+        "required_skills": required,
+        "preferred_skills": [],
+        "required_experience": {
+            "years_minimum": years_minimum,
+            "years_preferred": max(years_minimum, 0),
+            "specific_domains": [],
+        },
+        "key_responsibilities": [],
+        "technical_requirements": required[:5],
+        "soft_skills": ["Communication", "Collaboration", "Problem-solving"],
+        "education_requirements": [],
+        "company_culture": {
+            "values": [],
+            "work_style": "collaborative",
+            "pace": "steady",
+            "size": "medium",
+        },
+        "benefits": [],
+        "growth_opportunities": [],
+        "interview_focus_areas": ["Core technical fundamentals", "Communication"],
+        "question_categories": {
+            "technical": required[:6],
+            "behavioral": ["Conflict handling", "Collaboration"],
+            "system_design": ["Scalability"] if years_minimum >= 3 else [],
+            "coding": ["Problem solving"],
+        },
+        "red_flags_to_watch": [],
+        "success_metrics": [],
+        "_metadata": {
+            "processed_at": "2024-01-01T00:00:00Z",
+            "ai_model": f"fallback:{settings.GROQ_MODEL}",
+            "text_length": len(jd_text),
+            "word_count": len(jd_text.split()),
+            "fallback": True,
+            "fallback_reason": error_detail[:300],
+        },
+    }
 
 
 def get_jd_default_value(field: str) -> Any:
@@ -323,20 +394,27 @@ def generate_interview_strategy(jd_analysis: Dict[str, Any]) -> Dict[str, Any]:
     
     base_counts = question_counts.get(seniority, question_counts["mid"])
     
+    # Increase question counts for complex roles
+    role_nuance = jd_analysis.get("role_complexity_nuance", "").lower()
+    if any(word in role_nuance for word in ["complex", "high-scale", "critical", "optimized", "architect"]):
+        base_counts["technical"] += 1
+        base_counts["deep_dive"] += 1
+    
     return {
         "difficulty_level": difficulty,
         "total_duration_minutes": 45 if seniority in ["junior", "mid"] else 60,
         "question_counts": base_counts,
         "focus_areas": jd_analysis.get("interview_focus_areas", []),
         "critical_skills": extract_critical_skills(jd_analysis),
+        "role_nuance": role_nuance,
         "behavioral_context": {
             "company_culture": jd_analysis.get("company_culture", {}),
             "key_responsibilities": jd_analysis.get("key_responsibilities", [])[:3],
         },
         "technical_depth": {
-            "system_design_required": seniority in ["senior", "lead", "principal"],
-            "coding_required": True,
-            "architecture_focus": seniority in ["lead", "principal"],
+            "system_design_required": seniority in ["senior", "lead", "principal"] or "system design" in role_nuance,
+            "coding_required": "coding" in jd_analysis.get("question_categories", {}),
+            "architecture_focus": seniority in ["lead", "principal"] or "architecture" in role_nuance,
         }
     }
 

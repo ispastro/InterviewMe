@@ -13,6 +13,7 @@ Engineering decisions:
 """
 
 import json
+import re
 from typing import Dict, Any, Optional
 from groq import AsyncGroq
 
@@ -189,12 +190,62 @@ async def analyze_cv_with_ai(cv_text: str) -> Dict[str, Any]:
         
         return cv_analysis
         
-    except AIServiceError:
+    except AIServiceError as e:
+        if settings.is_development:
+            return build_fallback_cv_analysis(cv_text, str(e))
         raise
     except ValidationError:
         raise
     except Exception as e:
+        if settings.is_development:
+            return build_fallback_cv_analysis(cv_text, str(e))
         raise AIServiceError(f"CV analysis failed: {str(e)}")
+
+
+def build_fallback_cv_analysis(cv_text: str, error_detail: str) -> Dict[str, Any]:
+    """Generate a minimal deterministic CV analysis when AI is unavailable in development."""
+    lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
+    candidate_name = lines[0] if lines else "Unknown"
+
+    tech_candidates = [
+        "python", "javascript", "typescript", "java", "c++", "go", "rust",
+        "fastapi", "django", "flask", "react", "next.js", "node", "postgresql",
+        "mysql", "redis", "docker", "kubernetes", "aws", "azure", "gcp"
+    ]
+    found_skills = []
+    lowered = cv_text.lower()
+    for skill in tech_candidates:
+        if re.search(rf"\b{re.escape(skill)}\b", lowered):
+            found_skills.append(skill)
+
+    years_match = re.search(r"(\d+)\s*\+?\s*(years?|yrs?)", lowered)
+    years_of_experience = int(years_match.group(1)) if years_match else 0
+
+    return {
+        "candidate_name": candidate_name,
+        "years_of_experience": years_of_experience,
+        "current_role": "Software Engineer",
+        "seniority_level": "mid" if years_of_experience >= 3 else "junior",
+        "skills": {
+            "technical": found_skills[:12],
+            "soft": ["Communication", "Problem-solving"],
+        },
+        "experience": [],
+        "education": [],
+        "projects": [],
+        "certifications": [],
+        "notable_points": [],
+        "potential_gaps": [],
+        "interview_focus_areas": ["Technical depth", "Communication clarity"],
+        "_metadata": {
+            "processed_at": "2024-01-01T00:00:00Z",
+            "ai_model": f"fallback:{settings.GROQ_MODEL}",
+            "text_length": len(cv_text),
+            "word_count": len(cv_text.split()),
+            "fallback": True,
+            "fallback_reason": error_detail[:300],
+        },
+    }
 
 
 def get_default_value(field: str) -> Any:

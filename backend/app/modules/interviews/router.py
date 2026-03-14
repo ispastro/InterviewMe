@@ -134,7 +134,8 @@ async def get_upload_file_info(
 
 @router.post("", response_model=InterviewDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_interview(
-    jd_text: str = Form(..., description="Job description text"),
+    jd_text: Optional[str] = Form(None, description="Job description text"),
+    jd_file: Optional[UploadFile] = File(None, description="Optional job description file (PDF, DOCX, or TXT)"),
     cv_file: UploadFile = File(..., description="CV file (PDF, DOCX, or TXT)"),
     target_company: Optional[str] = Form(None, description="Optional company name override"),
     db: AsyncSession = Depends(get_db),
@@ -152,13 +153,21 @@ async def create_interview(
     try:
         # Extract text from CV file
         cv_text, cv_metadata = await extract_text_from_file(cv_file)
+
+        # Resolve JD text from direct text or uploaded file
+        resolved_jd_text = jd_text.strip() if jd_text else None
+        if jd_file is not None:
+            resolved_jd_text, _ = await extract_text_from_file(jd_file)
+
+        if not resolved_jd_text:
+            raise ValidationError("Provide either jd_text or jd_file")
         
         # Create interview with AI processing
         interview = await interview_service.create_interview(
             db=db,
             user=current_user,
             cv_text=cv_text,
-            jd_text=jd_text,
+            jd_text=resolved_jd_text,
             cv_metadata=cv_metadata,
             target_company=target_company
         )
