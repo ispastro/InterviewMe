@@ -5,7 +5,18 @@ Generates dynamic questions and provides real-time feedback using Groq API
 from typing import Dict, List, Any, Optional
 import json
 from groq import AsyncGroq
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log
+)
+import logging
 from ...config import settings
+
+# Setup logging for retry attempts
+logger = logging.getLogger(__name__)
 
 class InterviewConductor:
     """AI-powered interview conductor for real-time interviews"""
@@ -14,6 +25,13 @@ class InterviewConductor:
         self.settings = settings
         self.client = AsyncGroq(api_key=self.settings.GROQ_API_KEY)
         
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     async def generate_opening_question(self, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate the opening question for an interview"""
         
@@ -91,6 +109,13 @@ Return ONLY a JSON object with this structure:
                 "turn_number": 1
             }
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     async def generate_follow_up_question(
         self, 
         interview_data: Dict[str, Any], 
@@ -249,6 +274,13 @@ Return ONLY a JSON object:
                 "turn_number": current_turn
             }
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     async def generate_probe_question(
         self,
         turn_data: Dict[str, Any],
@@ -346,6 +378,13 @@ Return ONLY a JSON object:
                 "is_probe": True
             }
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     async def evaluate_response(
         self, 
         question_data: Dict[str, Any], 
@@ -467,6 +506,13 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
             "suggested_closing": "Thank you for your time today. Do you have any questions about the role or our company?"
         }
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     async def generate_interview_summary(
         self, 
         interview_data: Dict[str, Any], 

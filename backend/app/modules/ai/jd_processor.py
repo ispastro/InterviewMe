@@ -16,9 +16,20 @@ import json
 import re
 from typing import Dict, Any, Optional, List
 from groq import AsyncGroq
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log
+)
+import logging
 
 from app.config import settings
 from app.core.exceptions import AIServiceError, ValidationError
+
+# Setup logging for retry attempts
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -95,6 +106,13 @@ JOB DESCRIPTION TEXT TO ANALYZE:
 # JD PROCESSING FUNCTIONS
 # ============================================================
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((Exception,)),  # Retry on any exception from Groq
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True
+)
 async def analyze_jd_with_ai(jd_text: str) -> Dict[str, Any]:
     """
     Analyze job description text using Groq AI to extract structured information.
