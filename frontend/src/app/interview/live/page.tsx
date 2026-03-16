@@ -11,7 +11,7 @@ import { Timer } from '@/components/Timer';
 import { InterviewerAvatar } from '@/components/InterviewerAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket, useSpeech } from '@/hooks';
-import { useInterviewStore, useInterviewSelectors, useSettingsSelectors } from '@/stores';
+import { useInterviewStore, useIsConnected, useIsActive, useFormattedTimer, useSettingsSelectors } from '@/stores';
 import { withAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import type { ChatMessage as ChatMessageType } from '@/types';
@@ -30,7 +30,9 @@ function LiveInterviewContent() {
     const setInterviewId = useInterviewStore((state) => state.setInterviewId);
     const setUserId = useInterviewStore((state) => state.setUserId);
     const setTimer = useInterviewStore((state) => state.setTimer);
-    const { isConnected, isActive, formattedTimer } = useInterviewSelectors();
+    const isConnected = useIsConnected();
+    const isActive = useIsActive();
+    const formattedTimer = useFormattedTimer();
     const { mode, durationInSeconds } = useSettingsSelectors();
     
     // Local state
@@ -379,7 +381,7 @@ function LiveInterviewContent() {
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-[#475569] font-[Lexend]">Time Left</span>
-                                <span className="text-[#0F172A] font-[Lexend]">{formattedTimer()}</span>
+                                <span className="text-[#0F172A] font-[Lexend]">{formattedTimer}</span>
                             </div>
                             {mode === 'voice' && (
                                 <div className="flex justify-between text-sm">

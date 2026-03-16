@@ -264,52 +264,54 @@ export const useError = () =>
 // COMPUTED SELECTORS (with shallow comparison)
 // ============================================================
 
-export const useInterviewSelectors = () => {
-  return useInterviewStore(
-    state => ({
-      // Computed properties
-      hasInterview: !!state.interview,
-      hasCVAnalysis: !!state.cvAnalysis,
-      hasJDAnalysis: !!state.jdAnalysis,
-      isReady: !!state.interview && !!state.cvAnalysis && !!state.jdAnalysis,
-      messageCount: state.messages.length,
-      feedbackCount: state.allFeedbacks.length,
-      averageScore: state.allFeedbacks.length > 0 
-        ? state.allFeedbacks.reduce((sum, f) => sum + f.overall_score, 0) / state.allFeedbacks.length 
-        : 0,
-      
-      // Status checks
-      isConnected: state.websocketConnected,
-      isActive: state.status === 'active',
-      isPaused: state.status === 'paused',
-      isCompleted: state.status === 'completed',
-      
-      // Progress tracking
-      progressPercentage: state.totalTurns > 0 
-        ? (state.currentTurn / state.totalTurns) * 100 
-        : 0,
-      
-      // Time formatting
-      formattedTimer: () => {
-        const minutes = Math.floor(state.timer / 60);
-        const seconds = state.timer % 60;
-        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      },
-      
-      // Latest feedback
-      latestFeedback: state.allFeedbacks[state.allFeedbacks.length - 1] || null,
-      
-      // Message filtering
-      userMessages: state.messages.filter(m => m.sender === 'user'),
-      interviewerMessages: state.messages.filter(m => m.sender === 'interviewer'),
-      
-      // Skills analysis
-      cvSkills: state.cvAnalysis?.skills.technical || [],
-      jdRequiredSkills: state.jdAnalysis?.required_skills || [],
-    }),
-    shallow
+// Individual computed selectors (stable, no infinite loops)
+export const useHasInterview = () => 
+  useInterviewStore(state => !!state.interview);
+
+export const useHasCVAnalysis = () => 
+  useInterviewStore(state => !!state.cvAnalysis);
+
+export const useHasJDAnalysis = () => 
+  useInterviewStore(state => !!state.jdAnalysis);
+
+export const useIsReady = () => 
+  useInterviewStore(state => !!state.interview && !!state.cvAnalysis && !!state.jdAnalysis);
+
+export const useFeedbackCount = () => 
+  useInterviewStore(state => state.allFeedbacks.length);
+
+export const useAverageScore = () => 
+  useInterviewStore(state => 
+    state.allFeedbacks.length > 0 
+      ? state.allFeedbacks.reduce((sum, f) => sum + f.overall_score, 0) / state.allFeedbacks.length 
+      : 0
   );
-};
+
+export const useIsActive = () => 
+  useInterviewStore(state => state.status === 'active');
+
+export const useIsPaused = () => 
+  useInterviewStore(state => state.status === 'paused');
+
+export const useIsCompleted = () => 
+  useInterviewStore(state => state.status === 'completed');
+
+export const useProgressPercentage = () => 
+  useInterviewStore(state => 
+    state.totalTurns > 0 ? (state.currentTurn / state.totalTurns) * 100 : 0
+  );
+
+export const useUserMessages = () => 
+  useInterviewStore(state => state.messages.filter(m => m.sender === 'user'), shallow);
+
+export const useInterviewerMessages = () => 
+  useInterviewStore(state => state.messages.filter(m => m.sender === 'interviewer'), shallow);
+
+export const useCVSkills = () => 
+  useInterviewStore(state => state.cvAnalysis?.skills.technical || [], shallow);
+
+export const useJDRequiredSkills = () => 
+  useInterviewStore(state => state.jdAnalysis?.required_skills || [], shallow);
 
 // Skills matching selector (memoized)
 export const useSkillsMatch = () => {
@@ -340,17 +342,27 @@ export const useSkillsMatch = () => {
 // PERFORMANCE MONITORING (Development only)
 // ============================================================
 
-if (process.env.NODE_ENV === 'development') {
-  // Subscribe to all state changes and log performance
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  // Only log significant changes, not timer updates
+  let lastLogTime = 0;
+  const LOG_THROTTLE = 1000; // Log at most once per second
+  
   useInterviewStore.subscribe(
     (state) => state,
     (state, prevState) => {
+      const now = Date.now();
+      if (now - lastLogTime < LOG_THROTTLE) return;
+      
       const changedKeys = Object.keys(state).filter(
         key => state[key as keyof typeof state] !== prevState[key as keyof typeof prevState]
       );
       
-      if (changedKeys.length > 0) {
-        console.log('🔄 Store updated:', changedKeys);
+      // Filter out timer updates for cleaner logs
+      const significantChanges = changedKeys.filter(key => key !== 'timer');
+      
+      if (significantChanges.length > 0) {
+        console.log('🔄 Store updated:', significantChanges);
+        lastLogTime = now;
       }
     }
   );

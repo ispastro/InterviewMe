@@ -21,9 +21,6 @@ export function useWebSocket(
   const sessionId = useInterviewStore((state) => state.sessionId);
   const setSessionId = useInterviewStore((state) => state.setSessionId);
   const setWebsocketConnected = useInterviewStore((state) => state.setWebsocketConnected);
-  const addMessage = useInterviewStore((state) => state.addMessage);
-  const setCurrentQuestion = useInterviewStore((state) => state.setCurrentQuestion);
-  const setFeedback = useInterviewStore((state) => state.setFeedback);
   const setIsEvaluating = useInterviewStore((state) => state.setIsEvaluating);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -37,13 +34,13 @@ export function useWebSocket(
     }
 
     if (isConnectingRef.current) {
-      console.warn('Connection already in progress');
+      console.warn('⚠️ Connection already in progress, skipping...');
       return;
     }
 
-    // If already connected, don't reconnect
+    // If already connected to the same interview, don't reconnect
     if (websocketService.isConnected()) {
-      console.log('Already connected');
+      console.log('✅ Already connected to WebSocket');
       return;
     }
 
@@ -121,16 +118,15 @@ export function useWebSocket(
     websocketService.ping();
   }, []);
 
-  // Set up event handlers
+  // Set up event handlers with stable references
   useEffect(() => {
-    if (!interviewId || !userId) return;
-
     const unsubscribeMessage = websocketService.onMessage((message: ChatMessage) => {
-      addMessage(message);
+      // Use getState() to avoid stale closures
+      useInterviewStore.getState().addMessage(message);
       
       // If it's an AI question, update current question
       if (message.sender === 'interviewer') {
-        setCurrentQuestion(message.message);
+        useInterviewStore.getState().setCurrentQuestion(message.message);
       }
     });
 
@@ -148,15 +144,14 @@ export function useWebSocket(
         modelAnswer: feedback.feedback || '',
       };
       
-      setFeedback(uiFeedback as any);
-      setIsEvaluating(false);
+      useInterviewStore.getState().setFeedback(uiFeedback as any);
+      useInterviewStore.getState().setIsEvaluating(false);
     });
 
     const unsubscribeStatus = websocketService.onStatus((status) => {
-      setWebsocketConnected(status === 'connected');
+      useInterviewStore.getState().setWebsocketConnected(status === 'connected');
       
       if (status === 'disconnected') {
-        // Don't auto-reconnect here - let the WebSocket service handle it
         console.log('WebSocket disconnected - service will handle reconnection if needed');
       }
     });
@@ -166,11 +161,17 @@ export function useWebSocket(
       unsubscribeFeedback();
       unsubscribeStatus();
     };
-  }, [interviewId, userId, addMessage, setCurrentQuestion, setFeedback, setIsEvaluating, setWebsocketConnected]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-connect on mount
   useEffect(() => {
-    if (autoConnect && interviewId && userId && !websocketService.isConnected()) {
+    if (!autoConnect || !interviewId || !userId) {
+      return;
+    }
+
+    // Only connect if not already connected or connecting
+    if (!websocketService.isConnected() && !isConnectingRef.current) {
+      console.log('🔌 Auto-connecting to WebSocket...');
       connect();
     }
 
@@ -179,7 +180,7 @@ export function useWebSocket(
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [autoConnect, interviewId, userId, connect]);
+  }, [autoConnect, interviewId, userId]); // Re-run when these change
 
   // Cleanup on unmount
   useEffect(() => {

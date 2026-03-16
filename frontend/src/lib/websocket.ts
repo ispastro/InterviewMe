@@ -62,6 +62,10 @@ class WebSocketService {
   private feedbackHandlers: ((feedback: Feedback) => void)[] = [];
   private statusHandlers: ((status: 'connected' | 'disconnected') => void)[] = [];
   
+  // Message deduplication
+  private processedMessageIds: Set<string> = new Set();
+  private readonly MAX_PROCESSED_IDS = 1000; // Keep last 1000 message IDs
+  
   // Connection state
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
   private reconnectAttempts = 0;
@@ -219,8 +223,25 @@ class WebSocketService {
         break;
 
       case 'ai_question':
+        const questionId = message.data.question_id || `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Deduplicate messages
+        if (this.processedMessageIds.has(questionId)) {
+          console.warn('⚠️ Duplicate message detected, skipping:', questionId);
+          return;
+        }
+        
+        // Add to processed set
+        this.processedMessageIds.add(questionId);
+        
+        // Limit set size to prevent memory leak
+        if (this.processedMessageIds.size > this.MAX_PROCESSED_IDS) {
+          const firstId = this.processedMessageIds.values().next().value;
+          this.processedMessageIds.delete(firstId);
+        }
+        
         const chatMessage: ChatMessage = {
-          id: message.data.question_id || `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: questionId,
           sender: 'interviewer',
           message: message.data.question,
           timestamp: new Date(),
@@ -237,8 +258,23 @@ class WebSocketService {
         break;
 
       case 'ai_feedback':
+        const feedbackId = message.data.feedback_id || Date.now().toString();
+        
+        // Deduplicate feedback
+        if (this.processedMessageIds.has(feedbackId)) {
+          console.warn('⚠️ Duplicate feedback detected, skipping:', feedbackId);
+          return;
+        }
+        
+        this.processedMessageIds.add(feedbackId);
+        
+        if (this.processedMessageIds.size > this.MAX_PROCESSED_IDS) {
+          const firstId = this.processedMessageIds.values().next().value;
+          this.processedMessageIds.delete(firstId);
+        }
+        
         const feedback: Feedback = {
-          id: message.data.feedback_id || Date.now().toString(),
+          id: feedbackId,
           questionId: message.data.question_id,
           overall_score: message.data.overall_score,
           criteria_scores: message.data.criteria_scores || {},
@@ -472,6 +508,7 @@ class WebSocketService {
     this.connectionState = ConnectionState.DISCONNECTED;
     this.reconnectAttempts = 0;
     this.messageQueue = [];
+    this.processedMessageIds.clear(); // Clear deduplication cache
   }
 
   // Event handlers

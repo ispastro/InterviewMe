@@ -58,13 +58,7 @@
   --radius-xl: 20px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--text-primary);
-  --font-sans: 'Lexend', var(--font-geist-sans);
-  --font-serif: 'Lora', Georgia, serif;
-  --font-mono: var(--font-geist-mono);
-}
+
 
 /* ========== Base Styles ========== */
 html {
