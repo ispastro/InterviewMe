@@ -65,7 +65,6 @@ async def websocket_interview_endpoint(
                 break
             except json.JSONDecodeError as e:
                 print(f"Invalid JSON from session {session_id}: {e}")
-                # Try to send error, but don't crash if it fails
                 try:
                     await connection_manager.send_error(
                         session_id, 
@@ -73,10 +72,14 @@ async def websocket_interview_endpoint(
                         "INVALID_JSON"
                     )
                 except Exception:
-                    pass  # Connection might be dead, just continue
+                    pass
             except Exception as e:
                 print(f"Error processing message for session {session_id}: {e}")
-                # Try to send error, but don't crash if it fails
+                # If the connection is dead, break out of the loop
+                if session_id not in connection_manager.active_connections:
+                    print(f"Session {session_id} connection lost — breaking message loop")
+                    break
+                # Try to send error back to client
                 try:
                     await connection_manager.send_error(
                         session_id, 
@@ -84,7 +87,7 @@ async def websocket_interview_endpoint(
                         "MESSAGE_PROCESSING_ERROR"
                     )
                 except Exception:
-                    pass  # Connection might be dead, just continue
+                    break  # Can't communicate — exit loop
                 
     except Exception as e:
         print(f"WebSocket connection error: {e}")
