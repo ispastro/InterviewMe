@@ -39,7 +39,7 @@ const defaultInterviewSettings: InterviewSettings = {
   difficulty: 'medium',
   interviewStyle: 'friendly',
   mode: 'text',
-  duration: 30,
+  duration: 10,
   focusAreas: [],
   enableRealTimeFeedback: true,
   autoAdvance: false,

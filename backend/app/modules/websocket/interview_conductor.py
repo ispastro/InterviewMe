@@ -263,12 +263,43 @@ Return ONLY a JSON object:
             return result
             
         except Exception as e:
-            print(f"Error generating follow-up question: {e}")
-            # Fallback question
+            print(f"❌ Error generating follow-up question: {e}")
+            print(f"   Turn: {current_turn}, History length: {len(conversation_history)}")
+            import traceback
+            traceback.print_exc()
+            
+            # Context-aware fallback questions to prevent loops
+            fallback_questions = [
+                {
+                    "question": "Can you tell me more about a challenging project you've worked on and how you approached it?",
+                    "focus_area": "problem_solving"
+                },
+                {
+                    "question": "How do you stay updated with the latest technologies and industry trends in your field?",
+                    "focus_area": "continuous_learning"
+                },
+                {
+                    "question": "Describe a situation where you had to work with a difficult team member. How did you handle it?",
+                    "focus_area": "teamwork"
+                },
+                {
+                    "question": "What's your approach to debugging a complex issue in production?",
+                    "focus_area": "debugging"
+                },
+                {
+                    "question": "Tell me about a time when you had to make a technical decision with incomplete information.",
+                    "focus_area": "decision_making"
+                }
+            ]
+            
+            # Select fallback based on turn number to avoid repetition
+            fallback_index = (current_turn - 1) % len(fallback_questions)
+            selected_fallback = fallback_questions[fallback_index]
+            
             return {
-                "question": "Can you tell me more about a challenging project you've worked on and how you approached it?",
+                "question": selected_fallback["question"],
                 "question_type": "behavioral",
-                "focus_area": "problem_solving",
+                "focus_area": selected_fallback["focus_area"],
                 "expected_duration": 3,
                 "evaluation_criteria": ["problem_solving", "communication", "technical_depth"],
                 "turn_number": current_turn
@@ -481,7 +512,7 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
         self, 
         conversation_history: List[Dict[str, Any]], 
         current_turn: int,
-        target_duration: int = 30
+        target_duration: int = 10  # Changed from 30 to 10 minutes
     ) -> Dict[str, Any]:
         """Determine if interview should end based on conversation flow"""
         
@@ -489,7 +520,7 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
         should_end = False
         reason = ""
         
-        if current_turn >= 8:  # Maximum turns reached
+        if current_turn >= 5:  # Changed from 8 to 5 for 10-minute interviews
             should_end = True
             reason = "Maximum number of questions reached"
         elif len(conversation_history) > 0:
