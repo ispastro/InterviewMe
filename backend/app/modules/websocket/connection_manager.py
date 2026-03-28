@@ -1,7 +1,4 @@
-"""
-WebSocket Connection Manager for InterviewMe Platform
-Handles real-time connections, session state, and message routing
-"""
+
 from typing import Dict, List, Optional, Any
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -29,7 +26,6 @@ class MessageType(str, Enum):
     PONG = "pong"
 
 class InterviewSession:
-    """Represents an active interview session"""
     
     def __init__(self, session_id: str, interview_id: str, user_id: str):
         self.session_id = session_id
@@ -42,11 +38,9 @@ class InterviewSession:
         self.context: Dict[str, Any] = {}
         
     def update_activity(self):
-        """Update last activity timestamp"""
         self.last_activity = datetime.utcnow()
         
     def to_dict(self) -> Dict[str, Any]:
-        """Convert session to dictionary"""
         return {
             "session_id": self.session_id,
             "interview_id": self.interview_id,
@@ -59,7 +53,6 @@ class InterviewSession:
         }
 
 class ConnectionManager:
-    """Manages WebSocket connections and interview sessions"""
     
     def __init__(self):
         # Active WebSocket connections: {session_id: websocket}
@@ -70,7 +63,6 @@ class ConnectionManager:
         self.user_sessions: Dict[str, str] = {}
         
     async def connect(self, websocket: WebSocket, user_id: str, interview_id: str) -> str:
-        """Accept WebSocket connection and create session"""
         await websocket.accept()
         
         # Generate unique session ID
@@ -97,7 +89,6 @@ class ConnectionManager:
         return session_id
         
     async def disconnect(self, session_id: str):
-        """Handle WebSocket disconnection"""
         if session_id in self.active_connections:
             # Update session status
             if session_id in self.active_sessions:
@@ -113,7 +104,6 @@ class ConnectionManager:
             del self.active_connections[session_id]
             
     async def send_message(self, session_id: str, message: Dict[str, Any]):
-        """Send message to specific session"""
         if session_id not in self.active_connections:
             print(f"Cannot send message: session {session_id} not in active connections")
             return
@@ -143,13 +133,11 @@ class ConnectionManager:
             await self.disconnect(session_id)
                 
     async def broadcast_to_user(self, user_id: str, message: Dict[str, Any]):
-        """Send message to all sessions of a user"""
         if user_id in self.user_sessions:
             session_id = self.user_sessions[user_id]
             await self.send_message(session_id, message)
             
     async def send_error(self, session_id: str, error_message: str, error_code: str = "GENERAL_ERROR"):
-        """Send error message to session (safe - won't crash if connection is dead)"""
         # Only attempt to send if session exists and connection is active
         if session_id not in self.active_connections:
             print(f"Cannot send error to session {session_id}: connection not active")
@@ -169,36 +157,30 @@ class ConnectionManager:
             print(f"Failed to send error message to session {session_id}: {e}")
         
     def get_session(self, session_id: str) -> Optional[InterviewSession]:
-        """Get interview session by ID"""
         return self.active_sessions.get(session_id)
         
     def get_user_session(self, user_id: str) -> Optional[InterviewSession]:
-        """Get active session for user"""
         if user_id in self.user_sessions:
             session_id = self.user_sessions[user_id]
             return self.active_sessions.get(session_id)
         return None
         
     def update_session_status(self, session_id: str, status: SessionStatus):
-        """Update session status"""
         if session_id in self.active_sessions:
             session = self.active_sessions[session_id]
             session.status = status
             session.update_activity()
             
     def update_session_context(self, session_id: str, context_update: Dict[str, Any]):
-        """Update session context"""
         if session_id in self.active_sessions:
             session = self.active_sessions[session_id]
             session.context.update(context_update)
             session.update_activity()
             
     def get_active_sessions_count(self) -> int:
-        """Get count of active sessions"""
         return len(self.active_sessions)
         
     def get_session_stats(self) -> Dict[str, Any]:
-        """Get session statistics"""
         status_counts = {}
         for session in self.active_sessions.values():
             status = session.status.value
@@ -210,5 +192,4 @@ class ConnectionManager:
             "status_breakdown": status_counts
         }
 
-# Global connection manager instance
 connection_manager = ConnectionManager()

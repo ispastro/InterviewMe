@@ -1,7 +1,3 @@
-"""
-AI Interview Conductor for InterviewMe Platform
-Generates dynamic questions and provides real-time feedback using Groq API
-"""
 from typing import Dict, List, Any, Optional
 import json
 from groq import AsyncGroq
@@ -19,7 +15,6 @@ from ...config import settings
 logger = logging.getLogger(__name__)
 
 class InterviewConductor:
-    """AI-powered interview conductor for real-time interviews"""
     
     def __init__(self):
         self.settings = settings
@@ -33,7 +28,6 @@ class InterviewConductor:
         reraise=True
     )
     async def generate_opening_question(self, interview_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate the opening question for an interview"""
         
         cv_analysis = interview_data.get("cv_analysis", {})
         jd_analysis = interview_data.get("jd_analysis", {})
@@ -117,14 +111,6 @@ Return ONLY a JSON object with this structure:
         reraise=True
     )
     async def generate_follow_up_question(
-        self, 
-        interview_data: Dict[str, Any], 
-        conversation_history: List[Dict[str, Any]], 
-        current_turn: int,
-        memory_context: Optional[Dict[str, Any]] = None,
-        focus_recommendation: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Generate follow-up question based on conversation history"""
         
         cv_analysis = interview_data.get("cv_analysis", {})
         jd_analysis = interview_data.get("jd_analysis", {})
@@ -312,13 +298,7 @@ Return ONLY a JSON object:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
-    async def generate_probe_question(
-        self,
-        turn_data: Dict[str, Any],
-        probe_reason: str,
-        interview_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Generate a probing follow-up question based on the last response"""
+    async def generate_probe_question(self, turn_data: Dict[str, Any], probe_reason: str, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         
         question = turn_data.get('question', '')
         response = turn_data.get('response', '')
@@ -416,13 +396,7 @@ Return ONLY a JSON object:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
-    async def evaluate_response(
-        self, 
-        question_data: Dict[str, Any], 
-        user_response: str, 
-        interview_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Evaluate user response and provide feedback"""
+    async def evaluate_response(self, question_data: Dict[str, Any], user_response: str, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         
         cv_analysis = interview_data.get("cv_analysis", {})
         jd_analysis = interview_data.get("jd_analysis", {})
@@ -508,13 +482,7 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
                 "follow_up_suggestions": []
             }
     
-    async def should_end_interview(
-        self, 
-        conversation_history: List[Dict[str, Any]], 
-        current_turn: int,
-        target_duration: int = 10  # Changed from 30 to 10 minutes
-    ) -> Dict[str, Any]:
-        """Determine if interview should end based on conversation flow"""
+    async def should_end_interview(self, conversation_history: List[Dict[str, Any]], current_turn: int, target_duration: int = 10) -> Dict[str, Any]:
         
         # Simple heuristics for ending interview
         should_end = False
@@ -544,12 +512,7 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
-    async def generate_interview_summary(
-        self, 
-        interview_data: Dict[str, Any], 
-        conversation_history: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Generate final interview summary and recommendations"""
+    async def generate_interview_summary(self, interview_data: Dict[str, Any], conversation_history: List[Dict[str, Any]]) -> Dict[str, Any]:
         
         # Format conversation for analysis
         conversation_text = ""
@@ -639,5 +602,4 @@ Provide a comprehensive interview summary. Return ONLY a JSON object:
                 "total_turns": len(conversation_history)
             }
 
-# Global interview conductor instance
 interview_conductor = InterviewConductor()

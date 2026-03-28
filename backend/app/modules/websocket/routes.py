@@ -1,7 +1,4 @@
-"""
-WebSocket API Routes for InterviewMe Platform
-Real-time communication endpoints for interview sessions
-"""
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer
 from typing import Dict, Any, Optional
@@ -16,10 +13,8 @@ from .connection_manager import connection_manager, MessageType, SessionStatus
 from .interview_conductor import interview_conductor
 from .interview_engine import InterviewEngine
 
-# Create router
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
-# Initialize interview engine
 interview_engine = InterviewEngine(connection_manager, interview_conductor)
 
 @router.websocket("/interview/{interview_id}")

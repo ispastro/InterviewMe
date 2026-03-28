@@ -1,7 +1,4 @@
-"""
-Interview Session Engine for InterviewMe Platform
-Manages interview flow, state transitions, and turn management
-"""
+
 import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -19,7 +16,6 @@ import json
 
 
 def _map_question_type_to_phase(question_type: str) -> str:
-    """Map conductor question types to persisted interview phases."""
     if not question_type:
         return InterviewPhase.TECHNICAL.value
 
@@ -37,7 +33,6 @@ def _map_question_type_to_phase(question_type: str) -> str:
     return InterviewPhase.TECHNICAL.value
 
 class InterviewEngine:
-    """Core engine for managing interview sessions with agentic memory"""
     
     def __init__(self, connection_manager: ConnectionManager, interview_conductor: InterviewConductor):
         self.connection_manager = connection_manager
@@ -47,7 +42,6 @@ class InterviewEngine:
         self.session_memories: Dict[str, ConversationMemory] = {}
         
     async def start_interview(self, session_id: str, db: AsyncSession) -> Dict[str, Any]:
-        """Start an interview session"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -138,12 +132,11 @@ class InterviewEngine:
             raise
     
     async def process_user_response(
-        self, 
-        session_id: str, 
-        user_response: str, 
-        db: AsyncSession
+        self,
+        session_id: str,
+        user_response: str,
+        db: AsyncSession,
     ) -> Dict[str, Any]:
-        """Process user response and generate next question or feedback"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -314,7 +307,6 @@ class InterviewEngine:
             raise
     
     async def pause_interview(self, session_id: str) -> Dict[str, Any]:
-        """Pause an active interview session"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -342,7 +334,6 @@ class InterviewEngine:
         }
     
     async def resume_interview(self, session_id: str) -> Dict[str, Any]:
-        """Resume a paused interview session"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -386,7 +377,6 @@ class InterviewEngine:
         }
     
     async def end_interview(self, session_id: str, db: AsyncSession) -> Dict[str, Any]:
-        """End an interview session and generate summary"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -449,7 +439,6 @@ class InterviewEngine:
             raise
     
     async def _save_turn_to_db(self, interview_id: str, turn_data: Dict[str, Any], db: AsyncSession):
-        """Save interview turn to database (skip if already exists)"""
         try:
             # Check if turn already exists
             existing_turn_stmt = select(Turn).where(
@@ -486,7 +475,6 @@ class InterviewEngine:
             traceback.print_exc()
     
     async def _save_interview_summary(self, interview_id: str, summary: Dict[str, Any], db: AsyncSession):
-        """Save interview summary as feedback"""
         strengths = [{"area": s, "score": 75} for s in summary.get("key_strengths", [])]
         weaknesses = [{"area": w, "score": 45} for w in summary.get("key_concerns", [])]
         suggestions = [
@@ -518,7 +506,6 @@ class InterviewEngine:
         await db.flush()
     
     async def get_session_status(self, session_id: str) -> Dict[str, Any]:
-        """Get current session status and context"""
         session = self.connection_manager.get_session(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -536,5 +523,4 @@ class InterviewEngine:
             "conversation_history_length": len(context.get("conversation_history", []))
         }
 
-# Global interview engine instance will be created in websocket routes
 interview_engine = None

@@ -1,17 +1,3 @@
-"""
-Conversational Memory System for Agentic Interview Experience
-
-This module provides intelligent memory management for interview sessions,
-enabling the AI to maintain context, track patterns, and make informed decisions
-about question generation and difficulty adjustment.
-
-Engineering decisions:
-- Real-time insight extraction from each turn
-- Performance-based pattern detection
-- CV contradiction detection
-- Contextual relevance scoring for history retrieval
-- Memory-efficient storage (only essential data)
-"""
 
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
@@ -20,7 +6,6 @@ from enum import Enum
 
 
 class InsightType(str, Enum):
-    """Types of insights extracted from conversation"""
     STRENGTH = "strength"
     WEAKNESS = "weakness"
     TECHNICAL_DEPTH = "technical_depth"
@@ -32,7 +17,6 @@ class InsightType(str, Enum):
 
 @dataclass
 class ConversationInsight:
-    """Represents a single insight extracted from conversation"""
     type: InsightType
     area: str
     evidence: str
@@ -42,7 +26,6 @@ class ConversationInsight:
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization"""
         return {
             "type": self.type.value,
             "area": self.area,
@@ -56,7 +39,6 @@ class ConversationInsight:
 
 @dataclass
 class PerformanceMetrics:
-    """Tracks candidate performance metrics"""
     average_score: float = 0.0
     score_trend: str = "stable"  # improving, declining, stable
     recent_scores: List[float] = field(default_factory=list)
@@ -66,7 +48,6 @@ class PerformanceMetrics:
     confidence_level: str = "medium"  # low, medium, high
     
     def update(self, evaluation: Dict[str, Any], response_text: str):
-        """Update metrics with new turn data"""
         overall_score = evaluation.get("overall_score", 0.0)
         
         # Update recent scores (keep last 5)
@@ -115,7 +96,6 @@ class PerformanceMetrics:
             self.confidence_level = "medium"
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
         return {
             "average_score": round(self.average_score, 2),
             "score_trend": self.score_trend,
@@ -128,21 +108,8 @@ class PerformanceMetrics:
 
 
 class ConversationMemory:
-    """
-    Intelligent memory system for interview conversations.
-    
-    Maintains full conversation history while extracting actionable insights
-    that enable agentic behavior in the AI interviewer.
-    """
     
     def __init__(self, cv_analysis: Dict[str, Any], jd_analysis: Dict[str, Any]):
-        """
-        Initialize conversation memory.
-        
-        Args:
-            cv_analysis: Candidate's CV analysis
-            jd_analysis: Job description analysis
-        """
         self.cv_analysis = cv_analysis
         self.jd_analysis = jd_analysis
         
@@ -168,12 +135,6 @@ class ConversationMemory:
         }
     
     def add_turn(self, turn_data: Dict[str, Any]) -> None:
-        """
-        Add a conversation turn and extract insights.
-        
-        Args:
-            turn_data: Turn data including question, response, evaluation
-        """
         # Add to full history
         self.full_history.append(turn_data)
         
@@ -191,7 +152,6 @@ class ConversationMemory:
             self.covered_topics.add(focus_area.lower())
     
     def _extract_insights(self, turn_data: Dict[str, Any]) -> None:
-        """Extract actionable insights from a turn"""
         evaluation = turn_data.get("evaluation", {})
         response = turn_data.get("response", "")
         turn_number = turn_data.get("turn_number", 0)
@@ -282,15 +242,6 @@ class ConversationMemory:
             self.insights.append(insight)
     
     def _detect_cv_contradiction(self, turn_data: Dict[str, Any]) -> Optional[str]:
-        """
-        Detect if response contradicts CV information.
-        
-        Args:
-            turn_data: Turn data with response
-            
-        Returns:
-            Contradiction description if found, None otherwise
-        """
         response = turn_data.get("response", "").lower()
         
         # Check claimed skills vs CV skills
@@ -322,21 +273,7 @@ class ConversationMemory:
         
         return None
     
-    def get_relevant_context(
-        self, 
-        next_focus_area: str, 
-        max_turns: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Get contextually relevant conversation history for next question generation.
-        
-        Args:
-            next_focus_area: The topic area for the next question
-            max_turns: Maximum number of turns to include
-            
-        Returns:
-            Dictionary with relevant context
-        """
+    def get_relevant_context(self, next_focus_area: str, max_turns: int = 5) -> Dict[str, Any]:
         # Get recent turns
         recent_turns = self.full_history[-max_turns:] if self.full_history else []
         
@@ -359,7 +296,6 @@ class ConversationMemory:
         }
     
     def _calculate_coverage_percentage(self) -> float:
-        """Calculate percentage of required topics covered"""
         if not self.required_topics:
             return 100.0
         
@@ -367,12 +303,6 @@ class ConversationMemory:
         return (covered_count / len(self.required_topics)) * 100
     
     def get_performance_summary(self) -> str:
-        """
-        Generate human-readable performance summary.
-        
-        Returns:
-            Formatted performance summary string
-        """
         perf = self.performance
         
         summary_parts = [
@@ -402,15 +332,6 @@ class ConversationMemory:
         return "\n".join(summary_parts)
     
     def should_probe_deeper(self, last_turn: Dict[str, Any]) -> Tuple[bool, str]:
-        """
-        Determine if we should probe deeper on the last response.
-        
-        Args:
-            last_turn: The most recent turn data
-            
-        Returns:
-            Tuple of (should_probe, reason)
-        """
         evaluation = last_turn.get("evaluation", {})
         response = last_turn.get("response", "")
         overall_score = evaluation.get("overall_score", 0.0)
@@ -447,12 +368,6 @@ class ConversationMemory:
         return False, ""
     
     def get_next_focus_recommendation(self) -> Dict[str, Any]:
-        """
-        Recommend what to focus on next based on conversation so far.
-        
-        Returns:
-            Dictionary with focus recommendations
-        """
         # Prioritize uncovered required topics
         uncovered = list(self.required_topics - self.covered_topics)
         
@@ -477,13 +392,7 @@ class ConversationMemory:
             )
         }
     
-    def _generate_focus_recommendation(
-        self, 
-        uncovered: List[str], 
-        weak_areas: List[str],
-        strong_areas: List[str]
-    ) -> str:
-        """Generate human-readable focus recommendation"""
+    def _generate_focus_recommendation(self, uncovered: List[str], weak_areas: List[str], strong_areas: List[str]) -> str:
         if uncovered:
             return f"Focus on uncovered required topics: {', '.join(uncovered[:2])}"
         elif weak_areas:
@@ -494,12 +403,6 @@ class ConversationMemory:
             return "Continue with balanced technical and behavioral questions"
     
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Serialize memory state for persistence.
-        
-        Returns:
-            Dictionary representation of memory state
-        """
         return {
             "full_history": self.full_history,
             "insights": [i.to_dict() for i in self.insights],
@@ -510,23 +413,7 @@ class ConversationMemory:
         }
     
     @classmethod
-    def from_dict(
-        cls, 
-        data: Dict[str, Any], 
-        cv_analysis: Dict[str, Any],
-        jd_analysis: Dict[str, Any]
-    ) -> "ConversationMemory":
-        """
-        Restore memory state from dictionary.
-        
-        Args:
-            data: Serialized memory state
-            cv_analysis: CV analysis
-            jd_analysis: JD analysis
-            
-        Returns:
-            Restored ConversationMemory instance
-        """
+    def from_dict(cls, data: Dict[str, Any], cv_analysis: Dict[str, Any], jd_analysis: Dict[str, Any]) -> "ConversationMemory":
         memory = cls(cv_analysis, jd_analysis)
         memory.full_history = data.get("full_history", [])
         memory.covered_topics = set(data.get("covered_topics", []))
