@@ -1,32 +1,17 @@
 from typing import Dict, List, Any, Optional
 import json
-from groq import AsyncGroq
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log
-)
 import logging
 from ...config import settings
+from app.modules.llm.gateway import llm_gateway
 
-# Setup logging for retry attempts
+# Setup logging
 logger = logging.getLogger(__name__)
 
 class InterviewConductor:
     
     def __init__(self):
         self.settings = settings
-        self.client = AsyncGroq(api_key=self.settings.GROQ_API_KEY)
         
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
-    )
     async def generate_opening_question(self, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         
         cv_analysis = interview_data.get("cv_analysis", {})
@@ -62,37 +47,20 @@ Return ONLY a JSON object with this structure:
 """
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.settings.GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLM Gateway with caching
+            result = await llm_gateway.completion_json(
+                prompt=prompt,
                 temperature=0.7,
-                max_tokens=500
+                max_tokens=500,
+                use_cache=True,
+                cache_ttl=1800  # Cache for 30 minutes
             )
-            
-            try:
-                result = json.loads(response.choices[0].message.content.strip())
-            except json.JSONDecodeError:
-                # Try to extract JSON from markdown if needed
-                content = response.choices[0].message.content.strip()
-                if "```" in content:
-                    if "```json" in content:
-                        json_start = content.find("```json") + 7
-                    else:
-                        json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        content = content[json_start:json_end].strip()
-                        result = json.loads(content)
-                    else:
-                        raise
-                else:
-                    raise
             
             result["turn_number"] = 1
             return result
             
         except Exception as e:
-            print(f"Error generating opening question: {e}")
+            logger.error(f"Error generating opening question: {e}")
             # Fallback opening question
             return {
                 "question": "Thank you for joining us today. Could you please start by telling me about yourself and what interests you about this position?",
@@ -103,14 +71,14 @@ Return ONLY a JSON object with this structure:
                 "turn_number": 1
             }
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
-    )
     async def generate_follow_up_question(
+        self,
+        interview_data: Dict[str, Any],
+        conversation_history: List[Dict[str, Any]],
+        current_turn: int,
+        memory_context: Optional[Dict[str, Any]] = None,
+        focus_recommendation: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         
         cv_analysis = interview_data.get("cv_analysis", {})
         jd_analysis = interview_data.get("jd_analysis", {})
@@ -219,40 +187,19 @@ Return ONLY a JSON object:
 """
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.settings.GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLM Gateway (no caching for context-dependent questions)
+            result = await llm_gateway.completion_json(
+                prompt=prompt,
                 temperature=0.8,
-                max_tokens=600
+                max_tokens=600,
+                use_cache=False
             )
-            
-            try:
-                result = json.loads(response.choices[0].message.content.strip())
-            except json.JSONDecodeError:
-                # Try to extract JSON from markdown if needed
-                content = response.choices[0].message.content.strip()
-                if "```" in content:
-                    if "```json" in content:
-                        json_start = content.find("```json") + 7
-                    else:
-                        json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        content = content[json_start:json_end].strip()
-                        result = json.loads(content)
-                    else:
-                        raise
-                else:
-                    raise
             
             result["turn_number"] = current_turn
             return result
             
         except Exception as e:
-            print(f"❌ Error generating follow-up question: {e}")
-            print(f"   Turn: {current_turn}, History length: {len(conversation_history)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error generating follow-up question: {e}")
             
             # Context-aware fallback questions to prevent loops
             fallback_questions = [
@@ -291,13 +238,6 @@ Return ONLY a JSON object:
                 "turn_number": current_turn
             }
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
-    )
     async def generate_probe_question(self, turn_data: Dict[str, Any], probe_reason: str, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         
         question = turn_data.get('question', '')
@@ -347,37 +287,20 @@ Return ONLY a JSON object:
 """
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.settings.GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLM Gateway
+            result = await llm_gateway.completion_json(
+                prompt=prompt,
                 temperature=0.7,
-                max_tokens=400
+                max_tokens=400,
+                use_cache=False
             )
-            
-            try:
-                result = json.loads(response.choices[0].message.content.strip())
-            except json.JSONDecodeError:
-                content = response.choices[0].message.content.strip()
-                if "```" in content:
-                    if "```json" in content:
-                        json_start = content.find("```json") + 7
-                    else:
-                        json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        content = content[json_start:json_end].strip()
-                        result = json.loads(content)
-                    else:
-                        raise
-                else:
-                    raise
             
             result["turn_number"] = turn_data.get('turn_number', 0)
             result["is_probe"] = True
             return result
             
         except Exception as e:
-            print(f"Error generating probe question: {e}")
+            logger.error(f"Error generating probe question: {e}")
             # Fallback probe question
             return {
                 "question": "Can you elaborate on that with a specific example from your experience?",
@@ -389,13 +312,6 @@ Return ONLY a JSON object:
                 "is_probe": True
             }
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
-    )
     async def evaluate_response(self, question_data: Dict[str, Any], user_response: str, interview_data: Dict[str, Any]) -> Dict[str, Any]:
         
         cv_analysis = interview_data.get("cv_analysis", {})
@@ -439,36 +355,18 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
 """
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.settings.GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLM Gateway
+            result = await llm_gateway.completion_json(
+                prompt=prompt,
                 temperature=0.3,
-                max_tokens=800
+                max_tokens=800,
+                use_cache=False
             )
-            
-            try:
-                result = json.loads(response.choices[0].message.content.strip())
-            except json.JSONDecodeError:
-                # Try to extract JSON from markdown if needed
-                content = response.choices[0].message.content.strip()
-                if "```" in content:
-                    if "```json" in content:
-                        json_start = content.find("```json") + 7
-                    else:
-                        json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        content = content[json_start:json_end].strip()
-                        result = json.loads(content)
-                    else:
-                        raise
-                else:
-                    raise
             
             return result
             
         except Exception as e:
-            print(f"Error evaluating response: {e}")
+            logger.error(f"Error evaluating response: {e}")
             # Fallback evaluation
             return {
                 "overall_score": 7.0,
@@ -505,13 +403,6 @@ Evaluate the response and provide feedback. Return ONLY a JSON object:
             "suggested_closing": "Thank you for your time today. Do you have any questions about the role or our company?"
         }
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
-    )
     async def generate_interview_summary(self, interview_data: Dict[str, Any], conversation_history: List[Dict[str, Any]]) -> Dict[str, Any]:
         
         # Format conversation for analysis
@@ -554,38 +445,20 @@ Provide a comprehensive interview summary. Return ONLY a JSON object:
 """
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.settings.GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLM Gateway
+            result = await llm_gateway.completion_json(
+                prompt=prompt,
                 temperature=0.2,
-                max_tokens=1000
+                max_tokens=1000,
+                use_cache=False
             )
-            
-            try:
-                result = json.loads(response.choices[0].message.content.strip())
-            except json.JSONDecodeError:
-                # Try to extract JSON from markdown if needed
-                content = response.choices[0].message.content.strip()
-                if "```" in content:
-                    if "```json" in content:
-                        json_start = content.find("```json") + 7
-                    else:
-                        json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        content = content[json_start:json_end].strip()
-                        result = json.loads(content)
-                    else:
-                        raise
-                else:
-                    raise
             
             result["interview_duration"] = len(conversation_history)
             result["total_turns"] = len(conversation_history)
             return result
             
         except Exception as e:
-            print(f"Error generating interview summary: {e}")
+            logger.error(f"Error generating interview summary: {e}")
             # Fallback summary
             return {
                 "overall_rating": "average",

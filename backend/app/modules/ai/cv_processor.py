@@ -1,15 +1,13 @@
 import json
 import re
 from typing import Dict, Any
-from groq import AsyncGroq
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 import logging
 
 from app.config import settings
 from app.core.exceptions import AIServiceError, ValidationError
+from app.modules.llm.gateway import llm_gateway
 
 logger = logging.getLogger(__name__)
-groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 CV_ANALYSIS_PROMPT = """You are an expert HR professional analyzing a candidate's CV. Extract structured information for a tailored technical interview.
 
@@ -33,23 +31,20 @@ def _parse_json_response(content: str) -> dict:
         raise
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10),
-       retry=retry_if_exception_type((Exception,)), before_sleep=before_sleep_log(logger, logging.WARNING), reraise=True)
 async def analyze_cv_with_ai(cv_text: str) -> Dict[str, Any]:
     if not cv_text or len(cv_text.strip()) < 50:
         raise ValidationError("CV text is too short for analysis")
     try:
-        response = await groq_client.chat.completions.create(
-            model=settings.GROQ_MODEL,
-            messages=[{"role": "user", "content": CV_ANALYSIS_PROMPT.format(cv_text=cv_text)}],
+        # Use LLM Gateway for automatic caching and retry logic
+        content = await llm_gateway.completion_json(
+            prompt=CV_ANALYSIS_PROMPT.format(cv_text=cv_text),
             temperature=0.3,
             max_tokens=settings.GROQ_MAX_TOKENS,
-            top_p=0.9,
+            use_cache=True,
+            cache_ttl=7200  # Cache CV analysis for 2 hours
         )
-        if not response.choices or not response.choices[0].message:
-            raise AIServiceError("Empty response from AI service")
-
-        cv_analysis = _parse_json_response(response.choices[0].message.content)
+        
+        cv_analysis = content
 
         for field in ["candidate_name", "years_of_experience", "skills", "experience"]:
             if field not in cv_analysis:

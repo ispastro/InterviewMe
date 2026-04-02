@@ -1,15 +1,13 @@
 import json
 import re
 from typing import Dict, Any, List
-from groq import AsyncGroq
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 import logging
 
 from app.config import settings
 from app.core.exceptions import AIServiceError, ValidationError
+from app.modules.llm.gateway import llm_gateway
 
 logger = logging.getLogger(__name__)
-groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 JD_ANALYSIS_PROMPT = """You are an expert technical recruiter analyzing a job description. Extract structured information for a tailored technical interview.
 
@@ -33,21 +31,20 @@ def _parse_json_response(content: str) -> dict:
         raise
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10),
-       retry=retry_if_exception_type((Exception,)), before_sleep=before_sleep_log(logger, logging.WARNING), reraise=True)
 async def analyze_jd_with_ai(jd_text: str) -> Dict[str, Any]:
     if not jd_text or len(jd_text.strip()) < 100:
         raise ValidationError("Job description text is too short for analysis")
     try:
-        response = await groq_client.chat.completions.create(
-            model=settings.GROQ_MODEL,
-            messages=[{"role": "user", "content": JD_ANALYSIS_PROMPT.format(jd_text=jd_text)}],
-            temperature=0.3, max_tokens=settings.GROQ_MAX_TOKENS, top_p=0.9,
+        # Use LLM Gateway for automatic caching and retry logic
+        content = await llm_gateway.completion_json(
+            prompt=JD_ANALYSIS_PROMPT.format(jd_text=jd_text),
+            temperature=0.3,
+            max_tokens=settings.GROQ_MAX_TOKENS,
+            use_cache=True,
+            cache_ttl=7200  # Cache JD analysis for 2 hours
         )
-        if not response.choices or not response.choices[0].message:
-            raise AIServiceError("Empty response from AI service")
-
-        jd_analysis = _parse_json_response(response.choices[0].message.content)
+        
+        jd_analysis = content
 
         for field in ["role_title", "seniority_level", "required_skills", "key_responsibilities"]:
             if field not in jd_analysis:
