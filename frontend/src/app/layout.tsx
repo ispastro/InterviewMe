@@ -74,8 +74,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
-        style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-black text-foreground`}
       >
         <QueryProvider>
           <AuthProvider>

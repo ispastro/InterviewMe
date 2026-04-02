@@ -114,7 +114,7 @@ function SessionSummaryContent() {
         { key: 'relevance' as keyof ScoreBreakdown, label: 'Relevance' },
     ];
 
-    const improvements = (feedback.suggestions || []).map(s => 
+    const improvements = (feedback.suggestions || []).map(s =>
         typeof s === 'string' ? s : s.action
     ).slice(0, 4);
 
@@ -270,15 +270,13 @@ function SessionSummaryContent() {
                             <div className="max-h-[500px] overflow-y-auto p-6 space-y-6">
                                 {transcript.length > 0 ? transcript.map((message) => (
                                     <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] p-4 rounded-[16px] ${
-                                            message.sender === 'interviewer'
+                                        <div className={`max-w-[85%] p-4 rounded-[16px] ${message.sender === 'interviewer'
                                                 ? 'bg-[#F8FAFC] border border-[#E5E7EB] text-[#0F172A]'
                                                 : 'bg-[#0F172A] text-white shadow-lg'
-                                        }`}>
+                                            }`}>
                                             <div className="flex items-center gap-2 mb-2">
-                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                                                    message.sender === 'interviewer' ? 'text-[#94A3B8]' : 'text-[#94A3B8]'
-                                                }`}>
+                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${message.sender === 'interviewer' ? 'text-[#94A3B8]' : 'text-[#94A3B8]'
+                                                    }`}>
                                                     {message.sender === 'interviewer' ? 'AI Interviewer' : 'You'}
                                                 </span>
                                             </div>

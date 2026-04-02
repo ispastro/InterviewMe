@@ -20,11 +20,11 @@ function LiveInterviewContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuth();
-    
+
     // Get URL parameters
     const interviewId = searchParams.get('interview_id');
     const userId = searchParams.get('user_id') || user?.id || null;
-    
+
     // Store selectors
     const interview = useInterviewStore();
     const setInterviewId = useInterviewStore((state) => state.setInterviewId);
@@ -34,16 +34,16 @@ function LiveInterviewContent() {
     const isActive = useIsActive();
     const formattedTimer = useFormattedTimer();
     const { mode, durationInSeconds } = useSettingsSelectors();
-    
+
     // Local state
     const [showEndModal, setShowEndModal] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-     const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(true);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const lastSpokenMessageRef = useRef<string | null>(null);
     const hasStartedRef = useRef(false);
-    
+
     // WebSocket connection
     const {
         isConnected: wsConnected,
@@ -96,7 +96,7 @@ function LiveInterviewContent() {
             router.push('/interview/setup');
             return;
         }
-        
+
         // Set initial state
         setInterviewId(interviewId);
         setUserId(userId);
@@ -116,27 +116,27 @@ function LiveInterviewContent() {
 
         // Get the last message
         const lastMessage = interview.messages[interview.messages.length - 1];
-        
+
         // Only speak AI messages that haven't been spoken yet
         if (
-            lastMessage && 
-            lastMessage.sender === 'interviewer' && 
+            lastMessage &&
+            lastMessage.sender === 'interviewer' &&
             lastMessage.id !== lastSpokenMessageRef.current &&
             !interview.isEvaluating
         ) {
             // Stop any ongoing speech
             stopSpeech();
-            
+
             // Speak the new message
             speak(lastMessage.message, {
                 rate: 1.0,
                 pitch: 1.0,
                 volume: 1.0,
             });
-            
+
             // Mark as spoken
             lastSpokenMessageRef.current = lastMessage.id;
-            
+
             console.log('🔊 Speaking AI message:', lastMessage.message.substring(0, 50) + '...');
         }
     }, [interview.messages, autoSpeakEnabled, isSynthesisSupported, mode, interview.isEvaluating, speak, stopSpeech]);
@@ -153,7 +153,7 @@ function LiveInterviewContent() {
         if (interview.timer > 0 && isActive && !isPaused) {
             interview.decrementTimer();
         }
-        
+
         if (interview.timer <= 1) {
             handleEndInterview();
         }
@@ -162,34 +162,34 @@ function LiveInterviewContent() {
     // Handle sending messages (both text and voice)
     const handleSendMessage = useCallback(async (message: string) => {
         if (!message.trim()) return;
-        
+
         // Guard: Check connection and session state
         if (!wsConnected) {
             console.warn('⚠️ Cannot send message: not connected');
             return;
         }
-        
+
         // Guard: Check if interview is active
         if (!isActive) {
             console.warn('⚠️ Cannot send message: interview not active');
             return;
         }
-        
+
         // Guard: Check if currently evaluating
         if (interview.isEvaluating) {
             console.warn('⚠️ Cannot send message: AI is evaluating');
             return;
         }
-        
+
         // Guard: Check if paused
         if (isPaused) {
             console.warn('⚠️ Cannot send message: interview is paused');
             return;
         }
-        
+
         // Stop any ongoing speech before sending
         stopSpeech();
-        
+
         sendAnswer(message);
     }, [wsConnected, isActive, interview.isEvaluating, isPaused, sendAnswer, stopSpeech]);
 
@@ -197,12 +197,12 @@ function LiveInterviewContent() {
     const handleAutoSpeakToggle = useCallback(() => {
         const newValue = !autoSpeakEnabled;
         setAutoSpeakEnabled(newValue);
-        
+
         // Stop speech if disabling
         if (!newValue) {
             stopSpeech();
         }
-        
+
         console.log('🔊 Auto-speak:', newValue ? 'enabled' : 'disabled');
     }, [autoSpeakEnabled, stopSpeech]);
 
@@ -220,12 +220,12 @@ function LiveInterviewContent() {
     // Handle ending interview
     const handleEndInterview = useCallback(() => {
         setShowEndModal(false);
-        
+
         // Stop any ongoing speech
         stopSpeech();
-        
+
         endSession();
-        
+
         // Navigate to summary page
         setTimeout(() => {
             router.push(`/interview/summary?interview_id=${interviewId}&session_id=${sessionId}`);
@@ -320,7 +320,7 @@ function LiveInterviewContent() {
                             totalSeconds={durationInSeconds}
                             onTick={handleTimerTick}
                         />
-                        
+
                         <Button
                             variant="secondary"
                             size="sm"
@@ -352,13 +352,13 @@ function LiveInterviewContent() {
                                 </p>
                             </div>
                         )}
-                        
+
                         <AnimatePresence mode="popLayout">
                             {interview.messages.map((message) => (
                                 <ChatMessage key={message.id} message={message} />
                             ))}
                         </AnimatePresence>
-                        
+
                         {interview.isEvaluating && <TypingIndicator />}
                     </div>
 
@@ -369,10 +369,10 @@ function LiveInterviewContent() {
                                 disabled={!wsConnected || interview.isEvaluating || isPaused || !isActive}
                                 placeholder={
                                     !wsConnected ? "Connecting..." :
-                                    !isActive ? "Starting interview..." :
-                                    isPaused ? "Interview paused..." :
-                                    interview.isEvaluating ? "AI is evaluating your response..." :
-                                    "Type your answer..."
+                                        !isActive ? "Starting interview..." :
+                                            isPaused ? "Interview paused..." :
+                                                interview.isEvaluating ? "AI is evaluating your response..." :
+                                                    "Type your answer..."
                                 }
                             />
                         ) : (
@@ -393,7 +393,7 @@ function LiveInterviewContent() {
                         feedback={interview.feedback as any}
                         isEvaluating={interview.isEvaluating}
                     />
-                    
+
                     {/* Interview Progress */}
                     <div className="mt-6 p-4 bg-white rounded-[12px] border border-[#E5E7EB]">
                         <h3 className="font-medium text-[#0F172A] mb-3 font-[Lora]">Progress</h3>

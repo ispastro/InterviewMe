@@ -1,5 +1,5 @@
 /* Google Fonts - must come before all other imports */
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Lexend:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Lexend:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -179,4 +179,106 @@ h6 {
 
 .animate-fade-in {
   animation: fadeIn 200ms ease;
+}
+
+/* Landing v2 styles */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined::before {
+  content: attr(data-icon);
+}
+
+.font-headline {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-body,
+.font-label {
+  font-family: 'Manrope', sans-serif;
+}
+
+.intelligence-gradient {
+  background: linear-gradient(135deg, #ba9eff 0%, #53ddfc 100%);
+}
+
+.glass-panel {
+  background: rgba(28, 37, 62, 0.6);
+  backdrop-filter: blur(24px);
+}
+
+.ghost-border {
+  border-block-start: 1px solid rgba(65, 71, 91, 0.2);
+}
+
+.ai-pulse {
+  block-size: 2px;
+  background: #53ddfc;
+  box-shadow: 0 0 10px #53ddfc;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.bg-surface {
+  background-color: #070d1f;
+}
+
+.bg-surface-container-lowest {
+  background-color: #000000;
+}
+
+.bg-surface-container-low {
+  background-color: #0c1326;
+}
+
+.bg-surface-container-high {
+  background-color: #171f36;
+}
+
+.bg-surface-container-highest {
+  background-color: #1c253e;
+}
+
+.text-on-surface {
+  color: #dfe4fe;
+}
+
+.text-on-primary-fixed {
+  color: #000000;
+}
+
+.text-secondary {
+  color: #53ddfc;
+}
+
+.text-primary {
+  color: #ba9eff;
+}
+
+.text-outline {
+  color: #6f758b;
+}
+
+.text-tertiary {
+  color: #e0ecff;
+}
+
+.border-outline-variant {
+  border-color: #41475b;
 }

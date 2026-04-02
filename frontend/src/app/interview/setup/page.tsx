@@ -24,7 +24,7 @@ export default function InterviewSetupPage() {
     const router = useRouter();
     const settingsStore = useSettingsStore();
     const settings = useSettingsSelectors();
-    
+
     const [cvFile, setCvFile] = useState<File | null>(null);
     const [jdFile, setJdFile] = useState<File | null>(null);
     const [jdText, setJdText] = useState('');
@@ -56,7 +56,7 @@ export default function InterviewSetupPage() {
             setUploadError('Pasted job description is too short. Please provide at least 100 characters.');
             return;
         }
-        
+
         if (!jdFile && !trimmedJdText) {
             setUploadError('Please upload a Job Description file or paste the text to continue.');
             return;
@@ -71,15 +71,15 @@ export default function InterviewSetupPage() {
             setTimeout(() => setProcessingStatus('Analyzing your CV with AI...'), 1000);
             setTimeout(() => setProcessingStatus('Processing job description...'), 3000);
             setTimeout(() => setProcessingStatus('Generating interview strategy...'), 5000);
-            
+
             const interview = await interviewService.createInterview({
                 cvFile,
                 jdFile: jdFile || undefined,
                 jdText: jdFile ? undefined : trimmedJdText,
             });
-            
+
             setProcessingStatus('Interview ready! Redirecting...');
-            
+
             // Navigate to live interview
             setTimeout(() => {
                 router.push(`/interview/live?interview_id=${interview.id}`);
@@ -96,7 +96,7 @@ export default function InterviewSetupPage() {
         <div className="min-h-screen bg-[#F8FAFC]">
             <header className="sticky top-0 z-40 px-6 py-4 bg-white border-b border-[#E5E7EB]">
                 <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <Link 
+                    <Link
                         href="/dashboard"
                         className="flex items-center gap-2 text-[#475569] hover:text-[#0F172A] transition-colors font-[Lexend]"
                     >
@@ -250,8 +250,8 @@ export default function InterviewSetupPage() {
 
                     {/* Processing Status */}
                     {isUploading && processingStatus && (
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }} 
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             className="p-4 bg-[#F0FDFA] border border-[#0D9488] rounded-[12px] text-[#0D9488] text-sm font-[Lexend] flex items-center gap-3"
                         >
@@ -261,8 +261,8 @@ export default function InterviewSetupPage() {
                     )}
 
                     {uploadError && (
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }} 
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             className="p-4 bg-red-50 border border-red-100 rounded-[12px] text-red-600 text-sm font-[Lexend] flex items-center gap-3"
                         >
