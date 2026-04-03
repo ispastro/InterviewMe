@@ -64,6 +64,12 @@ export default function RegisterPage() {
             {/* Right Side - Form */}
             <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
                 <div className="w-full max-w-md">
+                    {/* Logo */}
+                    <Link href="/" className="flex items-center justify-center gap-2 mb-8">
+                        <img src="/logo.png" alt="InterviewMe" className="h-10 w-auto object-contain" />
+                        <span className="text-2xl font-bold text-gray-900">InterviewMe</span>
+                    </Link>
+
                     {/* Header */}
                     <div className="mb-10">
                         <h1 className="text-4xl font-bold text-gray-900 mb-3">Create account</h1>
