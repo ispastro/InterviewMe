@@ -1,29 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-    Bot,
-    ArrowRight,
-    ArrowLeft,
-    MessageSquare,
-    Mic,
-    Sparkles,
-    FileText,
-    Loader2
-} from 'lucide-react';
-import { Button, Card, CardContent } from '@/components/ui';
-import { FileUpload } from '@/components/upload';
-import { useSettingsStore, useSettingsSelectors } from '@/stores';
+import { useRouter } from 'next/navigation';
+import { Bot, Upload, FileText, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Button, Card } from '@/components/ui';
 import { interviewService } from '@/services/interview.service';
-import { cn } from '@/lib/utils';
 
 export default function InterviewSetupPage() {
     const router = useRouter();
-    const settingsStore = useSettingsStore();
-    const settings = useSettingsSelectors();
+    const cvInputRef = useRef<HTMLInputElement>(null);
+    const jdInputRef = useRef<HTMLInputElement>(null);
 
     const [cvFile, setCvFile] = useState<File | null>(null);
     const [jdFile, setJdFile] = useState<File | null>(null);
@@ -32,17 +19,36 @@ export default function InterviewSetupPage() {
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [processingStatus, setProcessingStatus] = useState<string>('');
 
-    const handlePasteJobDescription = async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            if (text?.trim()) {
-                setJdText(text.trim());
-                setJdFile(null);
-                setUploadError(null);
-            }
-        } catch {
-            setUploadError('Could not access clipboard. Please paste manually into the text box.');
+    const validateFileSize = (file: File, maxMb: number) => {
+        const maxBytes = maxMb * 1024 * 1024;
+        return file.size <= maxBytes;
+    };
+
+    const handleCVPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!validateFileSize(file, 5)) {
+            setUploadError('CV file must be 5MB or smaller.');
+            return;
         }
+
+        setCvFile(file);
+        setUploadError(null);
+    };
+
+    const handleJDPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!validateFileSize(file, 5)) {
+            setUploadError('Job description file must be 5MB or smaller.');
+            return;
+        }
+
+        setJdFile(file);
+        setJdText('');
+        setUploadError(null);
     };
 
     const handleStartInterview = async () => {
@@ -53,34 +59,28 @@ export default function InterviewSetupPage() {
 
         const trimmedJdText = jdText.trim();
         if (!jdFile && trimmedJdText.length < 100) {
-            setUploadError('Pasted job description is too short. Please provide at least 100 characters.');
+            setUploadError('Job description must be at least 100 characters.');
             return;
         }
 
         if (!jdFile && !trimmedJdText) {
-            setUploadError('Please upload a Job Description file or paste the text to continue.');
+            setUploadError('Please upload a Job Description or paste the text.');
             return;
         }
 
         setIsUploading(true);
         setUploadError(null);
-        setProcessingStatus('Uploading files...');
+        setProcessingStatus('Analyzing your documents...');
 
         try {
-            // Show processing steps
-            setTimeout(() => setProcessingStatus('Analyzing your CV with AI...'), 1000);
-            setTimeout(() => setProcessingStatus('Processing job description...'), 3000);
-            setTimeout(() => setProcessingStatus('Generating interview strategy...'), 5000);
-
             const interview = await interviewService.createInterview({
                 cvFile,
                 jdFile: jdFile || undefined,
                 jdText: jdFile ? undefined : trimmedJdText,
             });
 
-            setProcessingStatus('Interview ready! Redirecting...');
+            setProcessingStatus('Ready! Starting interview...');
 
-            // Navigate to live interview
             setTimeout(() => {
                 router.push(`/interview/live?interview_id=${interview.id}`);
             }, 500);
@@ -93,199 +93,154 @@ export default function InterviewSetupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <header className="sticky top-0 z-40 px-6 py-4 bg-white border-b border-[#E5E7EB]">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <Link
-                        href="/dashboard"
-                        className="flex items-center gap-2 text-[#475569] hover:text-[#0F172A] transition-colors font-[Lexend]"
-                    >
+        <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200">
+                <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <Link href="/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
                         <ArrowLeft size={20} />
-                        <span>Back to Dashboard</span>
+                        <span>Back</span>
                     </Link>
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-[12px] bg-[#0F172A] flex items-center justify-center">
-                            <Bot size={22} className="text-white" />
-                        </div>
+                        <Bot size={24} className="text-[#0D9488]" />
+                        <span className="text-xl font-semibold text-gray-900">InterviewMe</span>
                     </Link>
                 </div>
             </header>
 
-            <main className="px-6 py-12 max-w-4xl mx-auto">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-12"
-                >
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F0FDFA] border border-[#99F6E4] mb-6">
-                        <Sparkles size={16} className="text-[#0D9488]" />
-                        <span className="text-sm text-[#0D9488] font-[Lexend]">Context-Aware AI Interview</span>
-                    </div>
-                    <h1 className="text-3xl font-bold text-[#0F172A] mb-4 font-[Lora]">
-                        Prepare for Your Specific Role
-                    </h1>
-                    <p className="text-[#475569] max-w-lg mx-auto font-[Lexend]">
-                        Upload your profile and the job requirements. Our AI will craft an interview perfectly tailored to this position.
-                    </p>
-                </motion.div>
+            {/* Main Content */}
+            <main className="max-w-4xl mx-auto px-6 py-12">
+                <div className="text-center mb-12">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-3">Setup Your Interview</h1>
+                    <p className="text-gray-600">Upload your CV and job description to get started</p>
+                </div>
 
-                <div className="space-y-8">
-                    {/* Communication Mode Selection */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                        <Card className="border-none shadow-sm overflow-hidden">
-                            <div className="bg-[#0F172A] px-6 py-4">
-                                <h3 className="text-white font-[Lora] font-semibold flex items-center gap-2">
-                                    <MessageSquare size={18} />
-                                    Choose Your Interview Mode
-                                </h3>
-                            </div>
-                            <CardContent className="p-6">
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[
-                                        { id: 'text', label: 'Text Session', icon: MessageSquare, description: 'Practice with real-time text chat' },
-                                        { id: 'voice', label: 'Voice Session', icon: Mic, description: 'Simulate a real call with voice' },
-                                    ].map((type) => (
-                                        <button
-                                            key={type.id}
-                                            onClick={() => settingsStore.updateInterviewSettings({ mode: type.id as 'text' | 'voice' })}
-                                            className={cn(
-                                                'p-5 rounded-[16px] border transition-all duration-300 text-left relative group',
-                                                settings.mode === type.id
-                                                    ? 'bg-[#F0FDFA] border-[#0D9488] ring-2 ring-[#0D9488]/10'
-                                                    : 'bg-white border-[#E5E7EB] hover:border-[#94A3B8] hover:bg-slate-50'
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "w-10 h-10 rounded-full flex items-center justify-center mb-3 transition-colors",
-                                                settings.mode === type.id ? "bg-[#0D9488] text-white" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                                            )}>
-                                                <type.icon size={20} />
-                                            </div>
-                                            <p className="font-semibold text-[#0F172A] font-[Lora]">{type.label}</p>
-                                            <p className="text-sm text-[#475569] font-[Lexend] mt-1 pr-4">{type.description}</p>
-                                            {settings.mode === type.id && (
-                                                <div className="absolute top-4 right-4">
-                                                    <div className="w-2 h-2 rounded-full bg-[#0D9488]" />
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
                     {/* CV Upload */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <Card>
-                            <CardContent className="p-6">
-                                <FileUpload
-                                    label="Your CV/Resume (Required)"
-                                    description="PDF, DOC, or DOCX up to 10MB. This gives the AI context on your background."
-                                    accept=".pdf,.doc,.docx"
-                                    maxSize={10}
-                                    file={cvFile}
-                                    onFileSelect={setCvFile}
-                                    onFileRemove={() => setCvFile(null)}
-                                    isUploading={isUploading}
-                                    error={uploadError}
-                                />
-                            </CardContent>
-                        </Card>
-                    </motion.div>
+                    <Card className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-[#F0FDFA] flex items-center justify-center">
+                                <Upload size={20} className="text-[#0D9488]" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">Your CV</h3>
+                                <p className="text-sm text-gray-600">PDF, DOCX (Max 5MB)</p>
+                            </div>
+                        </div>
 
-                    {/* JD Upload/Paste */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                        <Card>
-                            <CardContent className="p-6">
-                                <FileUpload
-                                    label="Target Job Description (Required)"
-                                    description="File or text. The interview strategy will be perfectly tailored to these requirements."
-                                    accept=".pdf,.doc,.docx,.txt"
-                                    maxSize={5}
-                                    file={jdFile}
-                                    onFileSelect={setJdFile}
-                                    onFileRemove={() => setJdFile(null)}
-                                    isUploading={isUploading}
-                                />
+                        <input
+                            ref={cvInputRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            className="hidden"
+                            onChange={handleCVPick}
+                            disabled={isUploading}
+                        />
 
-                                <div className="mt-6 pt-6 border-t border-slate-100">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <label className="text-sm font-semibold text-[#0F172A] font-[Lexend]">
-                                            Or Paste Job Description Directly
-                                        </label>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handlePasteJobDescription}
-                                            disabled={isUploading}
-                                            className="text-[#0D9488] hover:text-[#0D9488] hover:bg-[#F0FDFA]"
-                                        >
-                                            <FileText size={16} className="mr-2" />
-                                            Paste Skills & Duties
-                                        </Button>
-                                    </div>
-                                    <textarea
-                                        value={jdText}
-                                        onChange={(e) => {
-                                            setJdText(e.target.value);
-                                            if (e.target.value.trim().length > 0) {
-                                                setJdFile(null);
-                                            }
-                                        }}
-                                        placeholder="Paste the requirements, responsibilities, and seniority details here..."
-                                        className="w-full min-h-[160px] rounded-[12px] border border-[#E5E7EB] p-4 text-sm text-[#0F172A] font-[Lexend] focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 focus:border-[#0D9488] transition-all resize-none"
-                                        disabled={isUploading}
-                                    />
-                                    <div className="mt-3 flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#0D9488] mt-1.5 flex-shrink-0" />
-                                        <p className="text-xs text-[#64748B] font-[Lexend] leading-relaxed">
-                                            The more detail you provide, the more specific and challenging the AI's questions will be. Minimum 100 characters recommended.
-                                        </p>
-                                    </div>
+                        <button
+                            onClick={() => cvInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-[#0D9488] hover:bg-[#F0FDFA] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {cvFile ? (
+                                <div className="flex items-center justify-center gap-2 text-[#0D9488]">
+                                    <CheckCircle size={20} />
+                                    <span className="font-medium">{cvFile.name}</span>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
+                            ) : (
+                                <div className="text-center">
+                                    <Upload size={32} className="mx-auto mb-2 text-gray-400" />
+                                    <p className="text-sm text-gray-600">Click to upload CV</p>
+                                </div>
+                            )}
+                        </button>
+                    </Card>
 
-                    {/* Processing Status */}
-                    {isUploading && processingStatus && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="p-4 bg-[#F0FDFA] border border-[#0D9488] rounded-[12px] text-[#0D9488] text-sm font-[Lexend] flex items-center gap-3"
-                        >
-                            <Loader2 size={16} className="animate-spin" />
-                            {processingStatus}
-                        </motion.div>
-                    )}
+                    {/* JD Upload */}
+                    <Card className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-[#F0FDFA] flex items-center justify-center">
+                                <FileText size={20} className="text-[#0D9488]" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">Job Description</h3>
+                                <p className="text-sm text-gray-600">Upload or paste text</p>
+                            </div>
+                        </div>
 
-                    {uploadError && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="p-4 bg-red-50 border border-red-100 rounded-[12px] text-red-600 text-sm font-[Lexend] flex items-center gap-3"
-                        >
-                            <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                            {uploadError}
-                        </motion.div>
-                    )}
+                        <textarea
+                            value={jdText}
+                            onChange={(e) => {
+                                setJdText(e.target.value);
+                                if (e.target.value.trim()) setJdFile(null);
+                            }}
+                            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:border-transparent"
+                            placeholder="Paste job description here..."
+                            disabled={isUploading}
+                        />
 
-                    <div className="pt-6">
-                        <Button
-                            onClick={handleStartInterview}
-                            className="w-full shadow-lg shadow-[#0F172A]/10 h-14 text-base"
-                            size="lg"
-                            isLoading={isUploading}
-                            disabled={!cvFile || (!jdFile && jdText.trim().length < 100)}
-                        >
-                            {isUploading ? 'Processing...' : 'Analyze & Start Practice Session'}
-                            {!isUploading && <ArrowRight size={20} className="ml-2" />}
-                        </Button>
-                        <p className="text-center text-xs text-slate-400 mt-4 font-[Lexend]">
-                            Our agentic engine will analyze your profile and the JD to create a custom session in ~5-10 seconds.
-                        </p>
+                        <div className="mt-3 flex items-center gap-3">
+                            <input
+                                ref={jdInputRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx,.txt"
+                                className="hidden"
+                                onChange={handleJDPick}
+                                disabled={isUploading}
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => jdInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="flex-1"
+                            >
+                                Upload File
+                            </Button>
+                            {jdFile && (
+                                <span className="text-sm text-[#0D9488] font-medium truncate flex-1">
+                                    {jdFile.name}
+                                </span>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Error Message */}
+                {uploadError && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {uploadError}
                     </div>
+                )}
+
+                {/* Processing Status */}
+                {isUploading && processingStatus && (
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm flex items-center gap-3">
+                        <Loader2 size={16} className="animate-spin" />
+                        {processingStatus}
+                    </div>
+                )}
+
+                {/* Start Button */}
+                <div className="text-center">
+                    <Button
+                        size="lg"
+                        onClick={handleStartInterview}
+                        disabled={isUploading || !cvFile || (!jdFile && jdText.trim().length < 100)}
+                        className="px-12"
+                    >
+                        {isUploading ? (
+                            <>
+                                <Loader2 size={18} className="mr-2 animate-spin" />
+                                Processing...
+                            </>
+                        ) : (
+                            'Start Interview'
+                        )}
+                    </Button>
+                    <p className="mt-4 text-sm text-gray-500">
+                        Your data is encrypted and secure
+                    </p>
                 </div>
             </main>
         </div>
