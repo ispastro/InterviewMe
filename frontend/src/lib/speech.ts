@@ -422,7 +422,13 @@ class SpeechSynthesisService {
     }
   ): void {
     if (!this.synth) {
-      throw new Error('Speech synthesis not supported in this browser');
+      console.warn('Speech synthesis not supported in this browser');
+      return;
+    }
+
+    if (!text || !text.trim()) {
+      console.warn('Cannot speak empty text');
+      return;
     }
 
     // Cancel any ongoing speech
@@ -464,7 +470,19 @@ class SpeechSynthesisService {
     utterance.onerror = (event) => {
       this.isSpeaking = false;
       this.currentUtterance = null;
-      console.error('🔊 Speech synthesis error:', event);
+      
+      // Filter out non-critical errors (interrupted, canceled)
+      const ignorableErrors = ['interrupted', 'canceled', 'cancelled'];
+      const errorName = (event as any).error || 'unknown';
+      
+      if (ignorableErrors.includes(errorName)) {
+        console.warn(`⚠️ Speech synthesis ${errorName} - this is normal`);
+        // Don't call error callback for expected interruptions
+        return;
+      }
+      
+      // Only log actual errors
+      console.error('🔊 Speech synthesis error:', errorName);
       callbacks?.onError?.(event);
     };
 
@@ -481,8 +499,15 @@ class SpeechSynthesisService {
     // Store current utterance
     this.currentUtterance = utterance;
 
-    // Speak
-    this.synth.speak(utterance);
+    try {
+      // Speak
+      this.synth.speak(utterance);
+    } catch (error) {
+      console.error('🔊 Failed to start speech synthesis:', error);
+      this.isSpeaking = false;
+      this.currentUtterance = null;
+      callbacks?.onError?.(error);
+    }
   }
 
   /**
@@ -510,9 +535,17 @@ class SpeechSynthesisService {
    */
   cancel(): void {
     if (!this.synth) return;
-    this.synth.cancel();
-    this.isSpeaking = false;
-    this.currentUtterance = null;
+    
+    try {
+      // Cancel all pending and current speech
+      this.synth.cancel();
+    } catch (error) {
+      // Ignore errors when canceling (browser might have already stopped)
+      console.warn('⚠️ Error canceling speech (safe to ignore):', error);
+    } finally {
+      this.isSpeaking = false;
+      this.currentUtterance = null;
+    }
   }
 
   /**
