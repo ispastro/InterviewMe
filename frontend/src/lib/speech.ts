@@ -218,8 +218,6 @@ class SpeechRecognitionService {
     };
 
     this.recognition.onerror = (event: any) => {
-      console.error('🎤 Speech recognition error:', event.error);
-      
       // Don't auto-restart - let the user control it
       // Auto-restart was causing interruptions mid-speech
       
@@ -233,16 +231,27 @@ class SpeechRecognitionService {
 
       // Only emit error for critical issues, not transient ones
       const criticalErrors = ['audio-capture', 'not-allowed', 'aborted'];
+      const transientErrors = ['no-speech', 'network'];
       
       if (criticalErrors.includes(event.error)) {
+        console.error('🎤 Speech recognition error:', event.error);
         this.callbacks.onError?.({
           error: event.error,
           message: errorMessages[event.error] || 'Speech recognition failed.',
         });
         this.isListening = false;
+      } else if (transientErrors.includes(event.error)) {
+        // For transient errors (no-speech, network), just log as warning and continue
+        console.warn(`⚠️ Transient speech error: ${event.error} - continuing...`);
+        // Don't stop listening, don't emit error callback
       } else {
-        // For transient errors (no-speech, network), just log and continue
-        console.warn(`⚠️ Transient error: ${event.error} - continuing...`);
+        // Unknown error - log and emit
+        console.error('🎤 Speech recognition error:', event.error);
+        this.callbacks.onError?.({
+          error: event.error,
+          message: errorMessages[event.error] || 'Speech recognition failed.',
+        });
+        this.isListening = false;
       }
     };
 
