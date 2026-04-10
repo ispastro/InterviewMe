@@ -9,8 +9,8 @@ from app.database import get_db
 from app.integrations.upstash import get_qstash, JobStatus
 from app.core.job_tracker import get_job_tracker
 from app.modules.interviews import service as interview_service
-from app.modules.ai.cv_processor import CVProcessor
-from app.modules.ai.jd_processor import JDProcessor
+from app.modules.ai.cv_processor import analyze_cv_with_ai
+from app.modules.ai.jd_processor import analyze_jd_with_ai
 from app.models import Interview
 from app.core.exceptions import AIServiceError, NotFoundError
 
@@ -89,13 +89,11 @@ async def process_interview_webhook(
         
         # Process CV
         logger.info(f"📄 Analyzing CV for interview {interview_id}")
-        cv_processor = CVProcessor()
-        cv_analysis = await cv_processor.process(cv_text)
+        cv_analysis = await analyze_cv_with_ai(cv_text)
         
         # Process JD
         logger.info(f"📋 Analyzing JD for interview {interview_id}")
-        jd_processor = JDProcessor()
-        jd_analysis = await jd_processor.process(jd_text)
+        jd_analysis = await analyze_jd_with_ai(jd_text)
         
         # Update interview
         interview.cv_analysis = cv_analysis
