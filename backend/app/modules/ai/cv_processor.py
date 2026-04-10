@@ -49,6 +49,15 @@ async def analyze_cv_with_ai(cv_text: str) -> Dict[str, Any]:
         for field in ["candidate_name", "years_of_experience", "skills", "experience"]:
             if field not in cv_analysis:
                 cv_analysis[field] = _get_default(field)
+        
+        # Convert years_of_experience to int (round up fractional years)
+        if "years_of_experience" in cv_analysis:
+            try:
+                years = cv_analysis["years_of_experience"]
+                # Round 0.5 years to 1, 1.5 to 2, etc.
+                cv_analysis["years_of_experience"] = int(round(years)) if isinstance(years, (int, float)) else 0
+            except (ValueError, TypeError):
+                cv_analysis["years_of_experience"] = 0
 
         if not isinstance(cv_analysis.get("skills"), dict):
             cv_analysis["skills"] = {"technical": [], "soft": []}

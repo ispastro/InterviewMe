@@ -52,18 +52,29 @@ settings = Settings()
 
 
 def validate_configuration():
+    """Validate critical configuration on startup."""
     valid_prefixes = (
         "postgresql://", "postgresql+asyncpg://",
+        "postgres://",  # Heroku format
         "sqlite+aiosqlite://",
     )
     if not settings.DATABASE_URL.startswith(valid_prefixes):
         raise ValueError(f"DATABASE_URL must start with one of {valid_prefixes}")
 
     if len(settings.JWT_SECRET) < 32:
-        raise ValueError("JWT_SECRET must be at least 32 characters")
+        raise ValueError("JWT_SECRET must be at least 32 characters for security")
+
+    if not settings.GROQ_API_KEY or settings.GROQ_API_KEY == "":
+        raise ValueError("GROQ_API_KEY is required for AI functionality")
 
     for origin in settings.CORS_ORIGINS:
         if not origin.startswith(("http://", "https://")):
             raise ValueError(f"CORS origin must start with http:// or https://. Got: {origin}")
 
-    print(f"Configuration validated — env: {settings.ENVIRONMENT}, model: {settings.GROQ_MODEL}")
+    if settings.is_production:
+        if settings.APP_DEBUG:
+            raise ValueError("APP_DEBUG must be False in production")
+        if "localhost" in str(settings.CORS_ORIGINS):
+            print("⚠️  WARNING: localhost in CORS_ORIGINS in production environment")
+
+    print(f"✅ Configuration validated — env: {settings.ENVIRONMENT}, model: {settings.GROQ_MODEL}")

@@ -113,10 +113,17 @@ class Interview(Base):
     def get_cv_skills(self) -> List[str]:
         if not self.cv_analysis:
             return []
-        return self.cv_analysis.get("skills", {}).get("technical", [])
+        if not isinstance(self.cv_analysis, dict):
+            return []
+        skills = self.cv_analysis.get("skills", {})
+        if not isinstance(skills, dict):
+            return []
+        return skills.get("technical", [])
 
     def get_jd_requirements(self) -> List[str]:
         if not self.jd_analysis:
+            return []
+        if not isinstance(self.jd_analysis, dict):
             return []
         return self.jd_analysis.get("required_skills", [])
 
@@ -201,8 +208,25 @@ class Turn(Base):
     def get_overall_score(self) -> Optional[float]:
         if not self.evaluation:
             return None
+        
+        # Try to get overall_score directly if it exists
+        if "overall_score" in self.evaluation:
+            try:
+                return float(self.evaluation["overall_score"])
+            except (ValueError, TypeError):
+                pass
+        
+        # Calculate from metrics
         metrics = ["relevance", "depth", "clarity"]
-        scores = [self.evaluation.get(m) for m in metrics if self.evaluation.get(m) is not None]
+        scores = []
+        for m in metrics:
+            val = self.evaluation.get(m)
+            if val is not None:
+                try:
+                    scores.append(float(val))
+                except (ValueError, TypeError):
+                    continue
+        
         if not scores:
             return None
         return sum(scores) / len(scores)

@@ -33,6 +33,32 @@ async def upload_cv_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
+    """Validate and preview CV file before interview creation."""
+    start_time = time.time()
+    try:
+        extracted_text, metadata = await extract_text_from_file(file)
+        processing_time = time.time() - start_time
+        return FileUploadResponse(
+            filename=metadata["filename"],
+            file_type=metadata["file_type"],
+            file_size_bytes=metadata["file_size_bytes"],
+            text_length=metadata["text_length"],
+            word_count=metadata["word_count"],
+            processing_time_seconds=round(processing_time, 2),
+            extracted_text_preview=extracted_text[:200] + "..." if len(extracted_text) > 200 else extracted_text,
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"File processing failed: {str(e)}")
+
+
+@router.post("/upload-jd", response_model=FileUploadResponse)
+async def upload_jd_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Validate and preview JD file before interview creation."""
     start_time = time.time()
     try:
         extracted_text, metadata = await extract_text_from_file(file)
@@ -66,13 +92,14 @@ async def get_upload_file_info(
 
 @router.post("", response_model=InterviewDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_interview(
+    cv_file: UploadFile = File(...),
     jd_text: Optional[str] = Form(None),
     jd_file: Optional[UploadFile] = File(None),
-    cv_file: UploadFile = File(...),
     target_company: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Create interview with CV file + JD (file or text). Performs AI analysis."""
     try:
         cv_text, cv_metadata = await extract_text_from_file(cv_file)
         resolved_jd_text = jd_text.strip() if jd_text else None
@@ -223,20 +250,55 @@ async def get_interview_turns(
         interview = await interview_service.get_interview_by_id(db, interview_id, current_user, include_turns=True)
         if not interview.turns:
             return []
-        return [
-            TurnResponse(
-                id=str(t.id), interview_id=str(t.interview_id), turn_number=t.turn_number,
-                phase=t.phase.value, ai_question=t.ai_question, user_answer=t.user_answer,
-                duration_seconds=t.duration_seconds, difficulty_level=t.difficulty_level,
-                created_at=t.created_at, has_answer=t.has_answer, has_evaluation=t.has_evaluation,
-                evaluation=t.evaluation if include_evaluation else None,
-                overall_score=t.get_overall_score() if include_evaluation else None,
-            )
-            for t in interview.turns
-        ]
+        
+        turns_response = []
+        for t in interview.turns:
+            try:
+                turn_data = TurnResponse(
+                    id=str(t.id), 
+                    interview_id=str(t.interview_id), 
+                    turn_number=t.turn_number,
+                    phase=t.phase.value, 
+                    ai_question=t.ai_question, 
+                    user_answer=t.user_answer,
+                    duration_seconds=t.duration_seconds, 
+                    difficulty_level=t.difficulty_level,
+                    created_at=t.created_at, 
+                    has_answer=t.has_answer, 
+                    has_evaluation=t.has_evaluation,
+                    evaluation=t.evaluation if include_evaluation else None,
+                    overall_score=t.get_overall_score() if include_evaluation else None,
+                )
+                turns_response.append(turn_data)
+            except Exception as turn_error:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error processing turn {t.id}: {str(turn_error)}")
+                turns_response.append(TurnResponse(
+                    id=str(t.id),
+                    interview_id=str(t.interview_id),
+                    turn_number=t.turn_number,
+                    phase=t.phase.value,
+                    ai_question=t.ai_question or "Error loading question",
+                    user_answer=t.user_answer,
+                    duration_seconds=t.duration_seconds,
+                    difficulty_level=t.difficulty_level,
+                    created_at=t.created_at,
+                    has_answer=False,
+                    has_evaluation=False,
+                    evaluation=None,
+                    overall_score=None,
+                ))
+        
+        return turns_response
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
     except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to get turns: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to get turns: {str(e)}")
 
 

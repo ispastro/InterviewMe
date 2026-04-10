@@ -1,0 +1,119 @@
+{
+  "name": "InterviewMe API",
+  "description": "AI-Powered Mock Interview Platform - Backend API",
+  "repository": "https://github.com/yourusername/interviewme",
+  "logo": "https://your-logo-url.com/logo.png",
+  "keywords": ["python", "fastapi", "ai", "interview", "groq", "postgresql"],
+  "success_url": "/docs",
+  "env": {
+    "ENVIRONMENT": {
+      "description": "Application environment",
+      "value": "production",
+      "required": true
+    },
+    "APP_DEBUG": {
+      "description": "Enable debug mode",
+      "value": "False",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT tokens (min 32 characters)",
+      "generator": "secret",
+      "required": true
+    },
+    "JWT_ALGORITHM": {
+      "description": "JWT signing algorithm",
+      "value": "HS256",
+      "required": true
+    },
+    "GROQ_API_KEY": {
+      "description": "Groq API key for AI processing (get from https://console.groq.com)",
+      "required": true
+    },
+    "GROQ_MODEL": {
+      "description": "Groq AI model to use",
+      "value": "llama-3.3-70b-versatile",
+      "required": true
+    },
+    "GROQ_MAX_TOKENS": {
+      "description": "Maximum tokens per AI request",
+      "value": "2048",
+      "required": true
+    },
+    "GROQ_TEMPERATURE": {
+      "description": "AI response randomness (0.0-1.0)",
+      "value": "0.7",
+      "required": true
+    },
+    "UPSTASH_REDIS_REST_URL": {
+      "description": "Upstash Redis REST URL (get from https://console.upstash.com)",
+      "required": false
+    },
+    "UPSTASH_REDIS_REST_TOKEN": {
+      "description": "Upstash Redis REST token",
+      "required": false
+    },
+    "REDIS_ENABLED": {
+      "description": "Enable Redis caching",
+      "value": "true",
+      "required": true
+    },
+    "CACHE_TTL_SECONDS": {
+      "description": "Cache time-to-live in seconds",
+      "value": "3600",
+      "required": true
+    },
+    "CORS_ORIGINS": {
+      "description": "Allowed CORS origins (JSON array)",
+      "value": "[\"https://your-frontend-domain.vercel.app\"]",
+      "required": true
+    },
+    "MAX_INTERVIEWS_PER_USER_PER_DAY": {
+      "description": "Rate limit for interviews per user per day",
+      "value": "10",
+      "required": true
+    },
+    "MAX_WEBSOCKET_CONNECTIONS_PER_USER": {
+      "description": "Max concurrent WebSocket connections per user",
+      "value": "3",
+      "required": true
+    },
+    "MAX_FILE_SIZE_MB": {
+      "description": "Maximum file upload size in MB",
+      "value": "5",
+      "required": true
+    },
+    "ALLOWED_FILE_TYPES": {
+      "description": "Allowed file types for upload (JSON array)",
+      "value": "[\"pdf\",\"docx\",\"txt\"]",
+      "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0",
+      "as": "DATABASE"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "environments": {
+    "test": {
+      "scripts": {
+        "test": "pytest tests/ -v"
+      }
+    }
+  },
+  "scripts": {
+    "postdeploy": "alembic upgrade head"
+  }
+}

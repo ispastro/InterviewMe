@@ -9,17 +9,23 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.config import settings
 
-is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+# Heroku sets DATABASE_URL with postgres:// prefix, convert to postgresql+asyncpg://
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+is_sqlite = db_url.startswith("sqlite")
 
 if is_sqlite:
-    engine = create_async_engine(settings.DATABASE_URL, echo=settings.database_echo, future=True)
+    engine = create_async_engine(db_url, echo=settings.database_echo, future=True)
 else:
     engine = create_async_engine(
-        settings.DATABASE_URL,
+        db_url,
         pool_size=10,
         max_overflow=20,
         pool_pre_ping=True,
         pool_recycle=3600,
+        pool_timeout=30,
         echo=settings.database_echo,
         future=True,
     )

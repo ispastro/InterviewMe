@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Development scripts
+ai_debug.py
+ai_demo.py
+debug_*.py
+comprehensive_test.py
+cv_processor_test.py
+detailed_debug.py
+fresh_cv_test.py
+json_parser_util.py
+production_validation.py
+websocket_demo.py
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Logs
+*.log
