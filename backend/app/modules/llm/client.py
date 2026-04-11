@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, AsyncIterator
 from groq import AsyncGroq
 from tenacity import (
     retry,
@@ -98,6 +98,50 @@ class LLMClient:
                 if end > start:
                     return json.loads(content[start:end].strip())
             raise
+    
+    async def chat_completion_stream(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: float = 0.9
+    ) -> AsyncIterator[str]:
+        """
+        Stream chat completion tokens in real-time.
+        
+        Args:
+            prompt: User prompt
+            system_prompt: Optional system prompt
+            temperature: Temperature setting
+            max_tokens: Max tokens
+            top_p: Top-p sampling
+            
+        Yields:
+            Text chunks as they arrive
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature or self.default_temperature,
+                max_tokens=max_tokens or self.default_max_tokens,
+                top_p=top_p,
+                stream=True
+            )
+            
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"LLM streaming failed: {str(e)}")
+            raise AIServiceError(f"LLM streaming failed: {str(e)}")
 
 
 llm_client = LLMClient()

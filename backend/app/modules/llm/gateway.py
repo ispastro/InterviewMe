@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -398,6 +398,105 @@ class LLMGateway:
             },
             "metrics": self.get_metrics()
         }
+    
+    async def completion_stream(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        use_cache: bool = True,
+        cache_ttl: Optional[int] = None
+    ) -> AsyncIterator[str]:
+        """
+        Stream completion with automatic caching.
+        
+        Note: Streaming responses are NOT cached during generation,
+        but the final complete response IS cached for future requests.
+        
+        Args:
+            prompt: User prompt
+            system_prompt: Optional system prompt
+            temperature: Temperature setting
+            max_tokens: Max tokens
+            use_cache: Check cache before streaming
+            cache_ttl: Custom TTL for caching final response
+            
+        Yields:
+            Text chunks as they arrive
+        """
+        start_time = time.time()
+        self.metrics.total_requests += 1
+        
+        try:
+            cache = get_llm_cache()
+            
+            # Step 1: Check cache first
+            if use_cache and cache.redis.enabled:
+                cache_start = time.time()
+                cached = await cache.get(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    model=llm_client.model
+                )
+                cache_elapsed = (time.time() - cache_start) * 1000
+                
+                if cached:
+                    # Cache HIT - yield entire cached response at once
+                    self.metrics.cache_hits += 1
+                    self.metrics.cache_latency_ms += cache_elapsed
+                    total_elapsed = (time.time() - start_time) * 1000
+                    self.metrics.total_latency_ms += total_elapsed
+                    
+                    logger.info(f"Gateway Stream: Cache HIT ({cache_elapsed:.1f}ms)")
+                    yield cached
+                    return
+                
+                # Cache MISS
+                self.metrics.cache_misses += 1
+                logger.debug(f"Gateway Stream: Cache MISS ({cache_elapsed:.1f}ms)")
+            
+            # Step 2: Stream from API
+            api_start = time.time()
+            accumulated_response = ""
+            
+            async for chunk in llm_client.chat_completion_stream(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens
+            ):
+                accumulated_response += chunk
+                yield chunk
+            
+            api_elapsed = (time.time() - api_start) * 1000
+            self.metrics.api_calls += 1
+            self.metrics.api_latency_ms += api_elapsed
+            
+            logger.info(f"Gateway Stream: API completed ({api_elapsed:.1f}ms)")
+            
+            # Step 3: Cache the complete response
+            if use_cache and cache.redis.enabled and accumulated_response:
+                await cache.set(
+                    prompt=prompt,
+                    response=accumulated_response,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    model=llm_client.model,
+                    ttl=cache_ttl
+                )
+            
+            # Update metrics
+            total_elapsed = (time.time() - start_time) * 1000
+            self.metrics.total_latency_ms += total_elapsed
+            
+        except Exception as e:
+            self.metrics.errors += 1
+            logger.error(f"Gateway stream error: {str(e)}")
+            raise AIServiceError(f"Gateway stream failed: {str(e)}")
 
 
 # Singleton instance

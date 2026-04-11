@@ -136,6 +136,7 @@ class InterviewEngine:
         session_id: str,
         user_response: str,
         db: AsyncSession,
+        use_streaming: bool = False
     ) -> Dict[str, Any]:
         session = self.connection_manager.get_session(session_id)
         if not session:
@@ -261,35 +262,84 @@ class InterviewEngine:
                 # Get relevant context for next question
                 relevant_context = memory.get_relevant_context(next_focus_area)
             
-            # Generate next question with enhanced context
-            next_question = await self.interview_conductor.generate_follow_up_question(
-                interview_data, 
-                conversation_history, 
-                session.current_turn + 1,
-                memory_context=relevant_context,
-                focus_recommendation=next_focus_recommendation
-            )
+            # Generate next question with streaming support
+            if use_streaming:
+                # Stream the question generation
+                accumulated_response = ""
+                
+                async for chunk in self.interview_conductor.generate_follow_up_question_stream(
+                    interview_data,
+                    conversation_history,
+                    session.current_turn + 1,
+                    memory_context=relevant_context,
+                    focus_recommendation=next_focus_recommendation
+                ):
+                    accumulated_response += chunk
+                    
+                    # Send chunk to client in real-time
+                    try:
+                        await self.connection_manager.send_message(session_id, {
+                            "type": "ai_question_chunk",
+                            "data": {
+                                "chunk": chunk,
+                                "turn_number": session.current_turn + 1
+                            }
+                        })
+                    except Exception as e:
+                        print(f"Failed to send chunk to session {session_id}: {e}")
+                
+                # Parse the complete accumulated response
+                try:
+                    next_question = json.loads(accumulated_response)
+                    next_question["turn_number"] = session.current_turn + 1
+                except json.JSONDecodeError:
+                    # Fallback if JSON parsing fails
+                    next_question = {
+                        "question": "Can you tell me more about your experience?",
+                        "question_type": "behavioral",
+                        "turn_number": session.current_turn + 1,
+                        "focus_area": "general",
+                        "expected_duration": 3
+                    }
+                
+                # Send completion signal
+                try:
+                    await self.connection_manager.send_message(session_id, {
+                        "type": "ai_question_complete",
+                        "data": next_question
+                    })
+                except Exception as e:
+                    print(f"Failed to send completion to session {session_id}: {e}")
+            else:
+                # Non-streaming (original behavior)
+                next_question = await self.interview_conductor.generate_follow_up_question(
+                    interview_data, 
+                    conversation_history, 
+                    session.current_turn + 1,
+                    memory_context=relevant_context,
+                    focus_recommendation=next_focus_recommendation
+                )
+                
+                # Send next question to client
+                try:
+                    await self.connection_manager.send_message(session_id, {
+                        "type": MessageType.AI_QUESTION,
+                        "data": {
+                            "question": next_question["question"],
+                            "question_type": next_question["question_type"],
+                            "turn_number": next_question["turn_number"],
+                            "focus_area": next_question["focus_area"],
+                            "expected_duration": next_question["expected_duration"]
+                        }
+                    })
+                except Exception as e:
+                    print(f"Failed to send next question to session {session_id}: {e}")
             
             # Update session context
             self.connection_manager.update_session_context(session_id, {
                 "current_question": next_question,
                 "conversation_history": conversation_history
             })
-            
-            # Send next question to client
-            try:
-                await self.connection_manager.send_message(session_id, {
-                    "type": MessageType.AI_QUESTION,
-                    "data": {
-                        "question": next_question["question"],
-                        "question_type": next_question["question_type"],
-                        "turn_number": next_question["turn_number"],
-                        "focus_area": next_question["focus_area"],
-                        "expected_duration": next_question["expected_duration"]
-                    }
-                })
-            except Exception as e:
-                print(f"Failed to send next question to session {session_id}: {e}")
             
             return {
                 "status": "processed",

@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, AsyncIterator
 import json
 import logging
 from ...config import settings
@@ -509,5 +509,203 @@ Provide a comprehensive interview summary. Return ONLY a JSON object:
         if self.use_compression and self.compressor:
             return self.compressor.get_metrics()
         return {"enabled": False, "message": "Compression is disabled"}
+    
+    async def generate_follow_up_question_stream(
+        self,
+        interview_data: Dict[str, Any],
+        conversation_history: List[Dict[str, Any]],
+        current_turn: int,
+        memory_context: Optional[Dict[str, Any]] = None,
+        focus_recommendation: Optional[Dict[str, Any]] = None
+    ) -> AsyncIterator[str]:
+        """
+        Stream follow-up question generation in real-time.
+        
+        Yields text chunks as they arrive from the LLM.
+        
+        Args:
+            interview_data: Interview context
+            conversation_history: Previous Q&A turns
+            current_turn: Current turn number
+            memory_context: Agentic memory context
+            focus_recommendation: Focus area recommendation
+            
+        Yields:
+            JSON string chunks (partial or complete)
+        """
+        cv_analysis = interview_data.get("cv_analysis", {})
+        jd_analysis = interview_data.get("jd_analysis", {})
+        
+        # Use memory context if available
+        if memory_context:
+            performance_summary = memory_context.get("performance_summary", {})
+            detected_patterns = memory_context.get("detected_patterns", {})
+            uncovered_topics = memory_context.get("uncovered_topics", [])
+        else:
+            performance_summary = {}
+            detected_patterns = {}
+            uncovered_topics = []
+        
+        # Get focus area
+        focus_area = "general"
+        if focus_recommendation and focus_recommendation.get("priority_topics"):
+            focus_area = focus_recommendation["priority_topics"][0]
+        
+        # Build prompt (with compression if enabled)
+        if self.use_compression and self.compressor:
+            logger.info(f"🗜️ Using prompt compression for streaming turn {current_turn}")
+            prompt = self.compressor.build_compressed_prompt(
+                cv_analysis=cv_analysis,
+                jd_analysis=jd_analysis,
+                conversation_history=conversation_history,
+                focus_area=focus_area,
+                performance_summary=performance_summary,
+                current_turn=current_turn,
+                detected_patterns=detected_patterns,
+                uncovered_topics=uncovered_topics
+            )
+        else:
+            # Use original verbose prompt (same as non-streaming version)
+            logger.info(f"📝 Using original prompt for streaming turn {current_turn}")
+            interview_strategy = interview_data.get("interview_strategy", {})
+            recent_turns = conversation_history[-3:]
+            
+            history_text = ""
+            for turn in recent_turns:
+                history_text += f"Q{turn.get('turn_number', 0)}: {turn.get('question', '')}\n"
+                history_text += f"A{turn.get('turn_number', 0)}: {turn.get('response', '')}\n"
+                eval_score = turn.get('evaluation', {}).get('overall_score', 0)
+                history_text += f"Score: {eval_score}/10\n\n"
+            
+            performance_text = ""
+            if performance_summary:
+                performance_text = f"""
+
+CANDIDATE PERFORMANCE SO FAR:
+- Average Score: {performance_summary.get('average_score', 0)}/10
+- Trend: {performance_summary.get('score_trend', 'stable')}
+- Technical Depth: {performance_summary.get('technical_depth_avg', 0)}/10
+- Communication: {performance_summary.get('communication_clarity_avg', 0)}/10
+- Confidence Level: {performance_summary.get('confidence_level', 'medium')}
+"""
+            
+            patterns_text = ""
+            if detected_patterns:
+                if detected_patterns.get('strengths'):
+                    patterns_text += f"\n✓ IDENTIFIED STRENGTHS: {', '.join(detected_patterns['strengths'][:3])}"
+                if detected_patterns.get('weaknesses'):
+                    patterns_text += f"\n⚠ AREAS NEEDING IMPROVEMENT: {', '.join(detected_patterns['weaknesses'][:3])}"
+                if detected_patterns.get('red_flags'):
+                    patterns_text += f"\n🚩 RED FLAGS: {len(detected_patterns['red_flags'])} detected"
+            
+            focus_text = ""
+            if focus_recommendation:
+                focus_text = f"""
+
+RECOMMENDED FOCUS:
+{focus_recommendation.get('recommendation', '')}
+- Priority Topics: {', '.join(focus_recommendation.get('priority_topics', [])[:3])}
+- Weak Areas to Probe: {', '.join(focus_recommendation.get('weak_areas_to_probe', [])[:2])}
+"""
+            
+            uncovered_text = ""
+            if uncovered_topics:
+                uncovered_text = f"\n\nUNCOVERED REQUIRED TOPICS: {', '.join(uncovered_topics[:5])}"
+            
+            prompt = f"""
+You are an expert AI interviewer with deep memory and context awareness. You conduct natural, conversational interviews that adapt to the candidate's performance.
+
+CANDIDATE PROFILE:
+{json.dumps(cv_analysis, indent=2)}
+
+JOB REQUIREMENTS:
+{json.dumps(jd_analysis, indent=2)}
+
+INTERVIEW STRATEGY:
+{json.dumps(interview_strategy, indent=2)}
+{performance_text}
+{patterns_text}
+{focus_text}
+{uncovered_text}
+
+RECENT CONVERSATION:
+{history_text}
+
+CURRENT TURN: {current_turn}
+
+🎯 YOUR MISSION:
+Generate the next question that feels like a REAL human interviewer who:
+1. **Remembers everything** - Reference specific things they said earlier
+2. **Adapts difficulty** - If they're doing well, challenge them harder. If struggling, ease up.
+3. **Probes intelligently** - Follow up on weak areas, validate strengths
+4. **Connects to the job** - Tie questions to actual job requirements from the JD
+5. **Sounds natural** - Use conversational transitions like "That's interesting...", "Building on that...", "I noticed you mentioned..."
+6. **Covers gaps** - Focus on uncovered required topics
+
+⚡ AGENTIC BEHAVIOR:
+- If they showed weakness in an area, probe deeper with a specific scenario
+- If they're performing well, increase difficulty with edge cases or system design
+- If they mentioned something from their CV, ask them to elaborate with specifics
+- If they're struggling, provide a hint or rephrase to build confidence
+
+Return ONLY a JSON object:
+{{
+    "question": "[Natural transition] + [The actual question]",
+    "question_type": "technical|behavioral|situational|deep_dive|closing",
+    "focus_area": "specific skill or competency being assessed",
+    "expected_duration": 3,
+    "evaluation_criteria": ["criterion1", "criterion2", "criterion3"]
+}}
+"""
+        
+        try:
+            # Stream from LLM Gateway
+            async for chunk in llm_gateway.completion_stream(
+                prompt=prompt,
+                temperature=0.8,
+                max_tokens=600,
+                use_cache=False
+            ):
+                yield chunk
+                
+        except Exception as e:
+            logger.error(f"Error streaming follow-up question: {e}")
+            # Yield fallback question as single chunk
+            fallback_questions = [
+                {
+                    "question": "Can you tell me more about a challenging project you've worked on and how you approached it?",
+                    "focus_area": "problem_solving"
+                },
+                {
+                    "question": "How do you stay updated with the latest technologies and industry trends in your field?",
+                    "focus_area": "continuous_learning"
+                },
+                {
+                    "question": "Describe a situation where you had to work with a difficult team member. How did you handle it?",
+                    "focus_area": "teamwork"
+                },
+                {
+                    "question": "What's your approach to debugging a complex issue in production?",
+                    "focus_area": "debugging"
+                },
+                {
+                    "question": "Tell me about a time when you had to make a technical decision with incomplete information.",
+                    "focus_area": "decision_making"
+                }
+            ]
+            
+            fallback_index = (current_turn - 1) % len(fallback_questions)
+            selected_fallback = fallback_questions[fallback_index]
+            
+            fallback_response = json.dumps({
+                "question": selected_fallback["question"],
+                "question_type": "behavioral",
+                "focus_area": selected_fallback["focus_area"],
+                "expected_duration": 3,
+                "evaluation_criteria": ["problem_solving", "communication", "technical_depth"],
+                "turn_number": current_turn
+            })
+            
+            yield fallback_response
 
 interview_conductor = InterviewConductor(use_compression=True, compression_level=0.7)
