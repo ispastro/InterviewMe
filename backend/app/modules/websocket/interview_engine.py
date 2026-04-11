@@ -136,7 +136,7 @@ class InterviewEngine:
         session_id: str,
         user_response: str,
         db: AsyncSession,
-        use_streaming: bool = False
+        use_streaming: bool = True  # Enable streaming by default
     ) -> Dict[str, Any]:
         session = self.connection_manager.get_session(session_id)
         if not session:
@@ -209,33 +209,72 @@ class InterviewEngine:
                 should_probe, probe_reason = memory.should_probe_deeper(turn_data)
                 
                 if should_probe:
+                    print(f"🔍 Probing deeper: {probe_reason}")
                     # Generate probing follow-up question
                     probe_question = await self.interview_conductor.generate_probe_question(
                         turn_data, probe_reason, interview_data
                     )
                     
-                    # Send probe question (doesn't increment turn)
-                    try:
-                        await self.connection_manager.send_message(session_id, {
-                            "type": MessageType.AI_QUESTION,
-                            "data": {
-                                "question": probe_question["question"],
-                                "question_type": "probe",
-                                "turn_number": turn_data["turn_number"],
-                                "focus_area": turn_data.get("focus_area", ""),
-                                "expected_duration": 2,
-                                "is_probe": True,
-                                "probe_reason": probe_reason
-                            }
-                        })
-                    except Exception as e:
-                        print(f"Failed to send probe question to session {session_id}: {e}")
+                    # Send probe question with streaming support
+                    if use_streaming:
+                        # Stream the probe question
+                        question_text = probe_question["question"]
+                        
+                        # Send chunks (simulate streaming for probe questions)
+                        chunk_size = 10
+                        for i in range(0, len(question_text), chunk_size):
+                            chunk = question_text[i:i+chunk_size]
+                            try:
+                                await self.connection_manager.send_message(session_id, {
+                                    "type": "ai_question_chunk",
+                                    "data": {
+                                        "chunk": chunk,
+                                        "turn_number": turn_data["turn_number"]
+                                    }
+                                })
+                            except Exception as e:
+                                print(f"Failed to send probe chunk to session {session_id}: {e}")
+                        
+                        # Send completion
+                        try:
+                            await self.connection_manager.send_message(session_id, {
+                                "type": "ai_question_complete",
+                                "data": {
+                                    "question": probe_question["question"],
+                                    "question_type": "probe",
+                                    "turn_number": turn_data["turn_number"],
+                                    "focus_area": turn_data.get("focus_area", ""),
+                                    "expected_duration": 2,
+                                    "is_probe": True,
+                                    "probe_reason": probe_reason
+                                }
+                            })
+                        except Exception as e:
+                            print(f"Failed to send probe completion to session {session_id}: {e}")
+                    else:
+                        # Non-streaming probe question
+                        try:
+                            await self.connection_manager.send_message(session_id, {
+                                "type": MessageType.AI_QUESTION,
+                                "data": {
+                                    "question": probe_question["question"],
+                                    "question_type": "probe",
+                                    "turn_number": turn_data["turn_number"],
+                                    "focus_area": turn_data.get("focus_area", ""),
+                                    "expected_duration": 2,
+                                    "is_probe": True,
+                                    "probe_reason": probe_reason
+                                }
+                            })
+                        except Exception as e:
+                            print(f"Failed to send probe question to session {session_id}: {e}")
                     
                     # Update context with probe question
                     self.connection_manager.update_session_context(session_id, {
                         "current_question": probe_question
                     })
                     
+                    print(f"✅ Returning early with probe question (streaming={use_streaming})")
                     return {
                         "status": "probing",
                         "probe_question": probe_question,
@@ -263,6 +302,7 @@ class InterviewEngine:
                 relevant_context = memory.get_relevant_context(next_focus_area)
             
             # Generate next question with streaming support
+            print(f"🔄 Generating next question with use_streaming={use_streaming}")
             if use_streaming:
                 # Stream the question generation
                 accumulated_response = ""

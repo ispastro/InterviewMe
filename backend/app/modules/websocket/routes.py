@@ -134,14 +134,15 @@ async def handle_websocket_message(session_id: str, message: Dict[str, Any], db:
                     "EMPTY_RESPONSE"
                 )
                 return
-                
+            
+            print(f"🔄 Processing user response with use_streaming=True")
             result = await interview_engine.process_user_response(
                 session_id, 
                 user_response, 
                 db,
                 use_streaming=True  # Enable streaming by default
             )
-            print(f"User response processed for session {session_id}")
+            print(f"✅ User response processed for session {session_id}, result status: {result.get('status')}")
             
         elif message_type == "pause_interview":
             # Pause the interview
