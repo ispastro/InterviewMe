@@ -1,34 +1,60 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bot, ArrowRight, Sparkles, Zap, Target, BarChart3, CheckCircle, Star, Users, Brain, MessageSquare, TrendingUp } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, Target, BarChart3, CheckCircle, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui';
 
+const featureItems = [
+  {
+    title: 'AI-Powered Questions',
+    description:
+      'Get personalized interview questions generated from your resume and target job description.',
+    icon: Zap,
+  },
+  {
+    title: 'Instant Feedback',
+    description:
+      'Receive real-time scoring and clear guidance on communication, confidence, and technical depth.',
+    icon: Target,
+  },
+  {
+    title: 'Performance Analytics',
+    description:
+      'Track progress over time and focus on the exact areas that improve your interview outcomes.',
+    icon: BarChart3,
+  },
+];
+
+const steps = [
+  {
+    title: 'Upload Your Resume',
+    description:
+      'Upload your CV and target job description. InterviewMe analyzes both in seconds.',
+  },
+  {
+    title: 'Practice Interview',
+    description:
+      'Answer adaptive AI questions in a realistic flow using text or voice.',
+  },
+  {
+    title: 'Get Feedback',
+    description:
+      'Review score breakdowns, strengths, and clear next actions to improve.',
+  },
+];
+
 export default function LandingPage() {
-  const [starCount, setStarCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch('https://api.github.com/repos/ispastro/InterviewAI')
-      .then(res => res.json())
-      .then(data => setStarCount(data.stargazers_count))
-      .catch(() => setStarCount(null));
-  }, []);
-
-  const formatStarCount = (count: number | null) => {
-    if (!count) return '...';
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-    return count.toString();
-  };
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {/* Header */}
-      <header className="border-b border-slate-800 sticky top-0 bg-slate-950/80 backdrop-blur-xl z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.1),transparent_45%),radial-gradient(ellipse_at_bottom,rgba(2,6,23,0.95),rgba(2,6,23,1))]" />
+      <div className="pointer-events-none absolute left-1/2 top-[-16rem] h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-teal-400/10 blur-[140px]" />
+      
+      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/75 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="InterviewMe" className="h-8 w-auto object-contain rounded-lg border border-slate-700" />
-            <span className="text-xl font-bold text-white">InterviewMe</span>
+            <img src="/logo.png" alt="InterviewMe" className="h-8 w-auto rounded-xl border border-slate-600/80 object-contain shadow-sm" />
+            <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-300 drop-shadow-[0_0_12px_rgba(255,255,255,0.18)]">
+              InterviewMe
+            </span>
           </Link>
           <div className="flex items-center gap-8">
             <nav className="hidden md:flex items-center gap-8">
@@ -46,7 +72,7 @@ export default function LandingPage() {
                 <span>GitHub</span>
               </a>
             </nav>
-            <div className="flex items-center gap-4">
+            <div>
               <Link href="/dashboard">
                 <Button size="sm" className="bg-white text-slate-900 hover:bg-slate-100">
                   Get Started
@@ -57,193 +83,140 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-32 md:py-40">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700">
+      <main className="relative z-10">
+        <section className="py-28 md:py-36">
+          <div className="mx-auto w-full max-w-6xl px-6">
+            <div className="mx-auto max-w-4xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/50 px-4 py-2">
               <Sparkles size={16} className="text-teal-400" />
-              <span className="text-sm font-medium text-slate-300">Powered by Groq AI • Lightning Fast</span>
-            </div>
-            
-            {/* Main Heading */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
-              Ace Your Next Interview
-              <br />
-              <span className="text-slate-400">In Minutes</span>
-            </h1>
-            
-            {/* Subtitle */}
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Practice with our advanced AI interviewer. Get instant feedback and land your dream job.
-              Personalized questions based on your resume and target role.
-            </p>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/interview/setup">
-                <Button size="lg" className="text-base px-8 bg-white text-slate-900 hover:bg-slate-100">
-                  <span className="flex items-center gap-2">
-                    Start Free Interview
-                    <ArrowRight size={20} />
-                  </span>
-                </Button>
-              </Link>
-              <Link href="#how-it-works">
-                <Button variant="outline" size="lg" className="text-base px-8 border-slate-700 text-slate-300 hover:bg-slate-800">
-                  See How It Works
-                </Button>
-              </Link>
-            </div>
-
-            {/* Social Proof */}
-            <div className="flex flex-wrap items-center justify-center gap-8 pt-8 text-sm text-slate-400">
-              <div className="flex items-center gap-2">
-                <Users size={18} className="text-teal-400" />
-                <span><strong className="text-white">10,000+</strong> users</span>
+                <span className="text-sm font-medium text-slate-300">Powered by Groq AI • Lightning Fast</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Star size={18} className="text-teal-400" />
-                <span><strong className="text-white">4.9/5</strong> rating</span>
+
+              <h1 className="mt-8 text-5xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
+                Ace Your Next Interview
+                <br />
+                <span className="text-slate-400">In Minutes</span>
+              </h1>
+
+              <p className="mx-auto mt-8 max-w-2xl text-xl leading-relaxed text-slate-400">
+                Practice with an adaptive AI interviewer, get instant feedback, and improve with every session.
+              </p>
+
+              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <Link href="/interview/setup">
+                  <Button size="lg" className="px-8 text-base bg-white text-slate-900 hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      Start Free Interview
+                      <ArrowRight size={20} />
+                    </span>
+                  </Button>
+                </Link>
+                <Link href="#how-it-works">
+                  <Button variant="outline" size="lg" className="px-8 text-base border-slate-700 text-slate-300 hover:bg-slate-800">
+                    See How It Works
+                  </Button>
+                </Link>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={18} className="text-teal-400" />
-                <span><strong className="text-white">95%</strong> success rate</span>
+
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Users size={18} className="text-teal-400" />
+                  <span><strong className="text-white">10,000+</strong> users</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star size={18} className="text-teal-400" />
+                  <span><strong className="text-white">4.9/5</strong> rating</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={18} className="text-teal-400" />
+                  <span><strong className="text-white">95%</strong> success rate</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 bg-slate-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Everything You Need to Succeed
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              Our AI-powered platform provides comprehensive interview preparation tailored to your needs
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:bg-slate-800 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center mb-6">
-                <Zap size={24} className="text-teal-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">AI-Powered Questions</h3>
-              <p className="text-slate-400 leading-relaxed">
-                Get personalized interview questions generated by advanced AI based on your resume and target job description.
+        <section id="features" className="bg-slate-900/65 py-24">
+          <div className="mx-auto w-full max-w-6xl px-6">
+            <div className="mb-16 text-center">
+              <h2 className="mb-4 text-3xl font-bold text-white md:text-4xl">
+                Everything You Need to Succeed
+              </h2>
+              <p className="mx-auto max-w-2xl text-xl text-slate-400">
+                Clean, focused interview practice built for measurable improvement.
               </p>
             </div>
 
-            {/* Feature 2 */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:bg-slate-800 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center mb-6">
-                <Target size={24} className="text-teal-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Instant Feedback</h3>
-              <p className="text-slate-400 leading-relaxed">
-                Receive real-time evaluation on your answers with detailed insights on communication, confidence, and technical depth.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 hover:bg-slate-800 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center mb-6">
-                <BarChart3 size={24} className="text-teal-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Performance Analytics</h3>
-              <p className="text-slate-400 leading-relaxed">
-                Track your progress over time with detailed analytics and identify areas for improvement with actionable insights.
-              </p>
+            <div className="grid gap-8 md:grid-cols-3">
+              {featureItems.map((feature) => (
+                <div key={feature.title} className="rounded-2xl border border-slate-700 bg-slate-800/45 p-8">
+                  <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10">
+                    <feature.icon size={24} className="text-teal-400" />
+                  </div>
+                  <h3 className="mb-3 text-xl font-bold text-white">{feature.title}</h3>
+                  <p className="leading-relaxed text-slate-400">{feature.description}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-24 bg-slate-950">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+        <section id="how-it-works" className="py-24">
+          <div className="mx-auto w-full max-w-6xl px-6">
+            <div className="mb-16 text-center">
+              <h2 className="mb-4 text-3xl font-bold text-white md:text-4xl">
               How It Works
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
+              </h2>
+              <p className="mx-auto max-w-2xl text-xl text-slate-400">
               Get started in minutes with our simple three-step process
+              </p>
+            </div>
+
+            <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-3">
+              {steps.map((step, index) => (
+                <div key={step.title} className="text-center">
+                  <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-teal-500 text-xl font-bold text-white">
+                    {index + 1}
+                  </div>
+                  <h3 className="mb-3 text-xl font-bold text-white">{step.title}</h3>
+                  <p className="text-slate-400">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-900/65 py-24">
+          <div className="mx-auto w-full max-w-4xl px-6 text-center">
+            <h2 className="mb-6 text-3xl font-bold text-white md:text-4xl">
+            Ready to Ace Your Next Interview?
+            </h2>
+            <p className="mx-auto mb-8 max-w-2xl text-xl text-slate-400">
+              Join thousands of candidates improving their confidence and interview performance.
+            </p>
+            <Link href="/interview/setup">
+              <Button size="lg" className="px-12 text-base bg-white text-slate-900 hover:bg-slate-100">
+                <span className="flex items-center gap-2">
+                  Start Free Interview
+                  <ArrowRight size={20} />
+                </span>
+              </Button>
+            </Link>
+            <p className="mt-6 text-sm text-slate-500">
+              No credit card required • Free forever • Start in 2 minutes
             </p>
           </div>
+        </section>
+      </main>
 
-          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
-            {/* Step 1 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-teal-500 text-white flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                1
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Upload Your Resume</h3>
-              <p className="text-slate-400">
-                Upload your CV and the job description you're targeting. Our AI analyzes both to create personalized questions.
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-teal-500 text-white flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                2
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Practice Interview</h3>
-              <p className="text-slate-400">
-                Engage in a realistic interview session with our AI. Answer questions via text or voice in real-time.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-teal-500 text-white flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                3
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Get Feedback</h3>
-              <p className="text-slate-400">
-                Receive detailed feedback on your performance with scores, strengths, and areas to improve.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 bg-slate-900">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Ace Your Next Interview?
-          </h2>
-          <p className="text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
-            Join thousands of successful candidates who used InterviewMe to land their dream jobs
-          </p>
-          <Link href="/interview/setup">
-            <Button size="lg" className="text-base px-12 bg-white text-slate-900 hover:bg-slate-100">
-              <span className="flex items-center gap-2">
-                Start Free Interview
-                <ArrowRight size={20} />
-              </span>
-            </Button>
-          </Link>
-          <p className="mt-6 text-sm text-slate-500">
-            No credit card required • Free forever • Get started in 2 minutes
-          </p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800 py-12 bg-slate-950">
-        <div className="max-w-7xl mx-auto px-6">
+      <footer className="border-t border-slate-800 py-12">
+        <div className="mx-auto w-full max-w-6xl px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="InterviewMe" className="h-6 w-auto object-contain rounded-lg border border-slate-700" />
-              <span className="text-lg font-bold text-white">InterviewMe</span>
+              <img src="/logo.png" alt="InterviewMe" className="h-6 w-auto object-contain rounded-xl border border-slate-600/80 shadow-sm" />
+              <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.14)]">
+                InterviewMe
+              </span>
             </div>
             <div className="flex gap-8 text-sm text-slate-400">
               <a href="#" className="hover:text-white transition-colors">Privacy</a>

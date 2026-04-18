@@ -41,7 +41,7 @@ export const Timer = React.memo(function Timer({ seconds, totalSeconds, onTick }
                     cy="50"
                     r="45"
                     fill="none"
-                    stroke="#E5E7EB"
+                    stroke="#334155"
                     strokeWidth="6"
                 />
                 <motion.circle
@@ -61,7 +61,7 @@ export const Timer = React.memo(function Timer({ seconds, totalSeconds, onTick }
 
             {/* Time display */}
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-semibold text-[#0F172A] font-[Lexend]">
+                <span className="text-lg font-semibold text-slate-100 font-[Lexend]">
                     {formatTime(seconds)}
                 </span>
             </div>

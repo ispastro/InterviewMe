@@ -32,7 +32,7 @@ export function FeedbackPanel({ feedback, isEvaluating = false }: FeedbackPanelP
         >
             {/* Score Breakdown */}
             <div>
-                <h3 className="text-lg font-semibold text-[#0F172A] mb-4 font-[Lora]">Score Breakdown</h3>
+                <h3 className="text-lg font-semibold text-white mb-4 font-[Lora]">Score Breakdown</h3>
                 <div className="space-y-4">
                     {scoreLabels.map((item, index) => (
                         <ScoreCard

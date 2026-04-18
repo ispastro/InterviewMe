@@ -43,7 +43,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = 'Type your a
 
     return (
         <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-end gap-3 p-4 bg-white border border-[#E5E7EB] rounded-[16px] shadow-[0px_2px_8px_rgba(0,0,0,0.04)]">
+            <div className="flex items-end gap-3 p-4 bg-slate-900/85 border border-slate-700 rounded-[16px] shadow-[0px_8px_24px_rgba(2,6,23,0.35)]">
                 <textarea
                     ref={textareaRef}
                     value={message}
@@ -53,7 +53,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = 'Type your a
                     disabled={disabled}
                     rows={1}
                     className={cn(
-                        'flex-1 bg-transparent text-[#0F172A] placeholder:text-[#94A3B8] resize-none font-[Lexend] text-sm',
+                        'flex-1 bg-transparent text-slate-100 placeholder:text-slate-500 resize-none font-[Lexend] text-sm',
                         'focus:outline-none',
                         'disabled:opacity-50 disabled:cursor-not-allowed'
                     )}

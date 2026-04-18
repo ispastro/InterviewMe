@@ -251,10 +251,10 @@ function LiveInterviewContent() {
     // Show loading state while connecting
     if (isConnecting) {
         return (
-            <div className="h-screen flex items-center justify-center bg-white">
+            <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-100">
                 <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-[#E5E7EB] border-t-[#0D9488] rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-[#475569] font-[Lexend]">Connecting to interview session...</p>
+                    <div className="w-12 h-12 border-4 border-slate-700 border-t-[#0D9488] rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-slate-400 font-[Lexend]">Connecting to interview session...</p>
                 </div>
             </div>
         );
@@ -263,11 +263,11 @@ function LiveInterviewContent() {
     // Show error state if connection failed
     if (wsError && !wsConnected) {
         return (
-            <div className="h-screen flex items-center justify-center bg-white">
+            <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-100">
                 <div className="text-center max-w-md">
                     <AlertCircle size={48} className="text-[#EF4444] mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-[#0F172A] mb-2 font-[Lora]">Connection Failed</h2>
-                    <p className="text-[#475569] mb-6 font-[Lexend]">{wsError}</p>
+                    <h2 className="text-xl font-semibold text-white mb-2 font-[Lora]">Connection Failed</h2>
+                    <p className="text-slate-400 mb-6 font-[Lexend]">{wsError}</p>
                     <div className="flex gap-4 justify-center">
                         <Button onClick={() => window.location.reload()}>
                             Try Again
@@ -282,14 +282,17 @@ function LiveInterviewContent() {
     }
 
     return (
-        <div className="h-screen flex flex-col bg-white">
+        <div className="relative h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.08),transparent_45%),radial-gradient(ellipse_at_bottom,rgba(2,6,23,0.96),rgba(2,6,23,1))]" />
+            <div className="pointer-events-none absolute left-1/2 top-[-16rem] h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-teal-400/10 blur-[140px]" />
+
             {/* Top Bar */}
-            <header className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 bg-white border-b border-[#E5E7EB]">
+            <header className="relative z-10 flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 bg-slate-950/75 border-b border-slate-800/80 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         <InterviewerAvatar isThinking={interview.isEvaluating} />
                         <div className="min-w-0">
-                            <p className="font-semibold text-[#0F172A] font-[Lora] text-sm sm:text-base truncate">AI Interviewer</p>
+                            <p className="font-semibold text-white font-[Lora] text-sm sm:text-base truncate">AI Interviewer</p>
                             <div className="flex items-center gap-2 text-xs sm:text-sm font-[Lexend]">
                                 {wsConnected ? (
                                     <span className="flex items-center gap-1 text-[#10B981]">
@@ -318,8 +321,8 @@ function LiveInterviewContent() {
                                 className={cn(
                                     'flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-[8px] transition-all text-xs sm:text-sm font-[Lexend]',
                                     autoSpeakEnabled
-                                        ? 'bg-[#DBEAFE] text-[#1E40AF] hover:bg-[#BFDBFE]'
-                                        : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]',
+                                        ? 'bg-teal-500/15 text-teal-300 hover:bg-teal-500/20 border border-teal-400/20'
+                                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700',
                                     !wsConnected && 'opacity-50 cursor-not-allowed'
                                 )}
                                 title={autoSpeakEnabled ? 'Auto-speak enabled' : 'Auto-speak disabled'}
@@ -342,7 +345,7 @@ function LiveInterviewContent() {
                             size="sm"
                             onClick={handlePauseResume}
                             disabled={!wsConnected}
-                            className="hidden sm:flex"
+                            className="hidden sm:flex border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"
                         >
                             {isPaused ? <Play size={16} /> : <Pause size={16} />}
                             <span className="hidden md:inline ml-2">{isPaused ? 'Resume' : 'Pause'}</span>
@@ -357,14 +360,14 @@ function LiveInterviewContent() {
             </header>
 
             {/* Main Content */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="relative z-10 flex-1 flex overflow-hidden">
                 {/* Chat Panel */}
-                <div className="flex-1 flex flex-col border-r border-[#E5E7EB] lg:w-[70%]">
-                    <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 bg-white">
+                <div className="flex-1 flex flex-col border-r border-slate-800 lg:w-[70%]">
+                    <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 bg-slate-950/30">
                         {interview.messages.length === 0 && !interview.isEvaluating && (
                             <div className="text-center py-12">
-                                <Bot size={48} className="text-[#94A3B8] mx-auto mb-4" />
-                                <p className="text-[#475569] font-[Lexend]">
+                                <Bot size={48} className="text-slate-500 mx-auto mb-4" />
+                                <p className="text-slate-400 font-[Lexend]">
                                     {wsConnected ? 'Interview starting soon...' : 'Connecting to interview session...'}
                                 </p>
                             </div>
@@ -393,7 +396,7 @@ function LiveInterviewContent() {
                         {interview.isEvaluating && !isStreaming && <TypingIndicator />}
                     </div>
 
-                    <div className="flex-shrink-0 p-3 sm:p-6 border-t border-[#E5E7EB] bg-[#F8FAFC]">
+                    <div className="flex-shrink-0 p-3 sm:p-6 border-t border-slate-800 bg-slate-900/45">
                         {mode === 'text' ? (
                             <ChatInput
                                 onSend={handleSendMessage}
@@ -418,36 +421,36 @@ function LiveInterviewContent() {
                 </div>
 
                 {/* Feedback Panel */}
-                <div className="hidden lg:block w-[30%] p-6 overflow-y-auto bg-[#F8FAFC]">
-                    <h2 className="text-lg font-semibold text-[#0F172A] mb-6 font-[Lora]">Real-time Feedback</h2>
+                <div className="hidden lg:block w-[30%] p-6 overflow-y-auto bg-slate-900/55">
+                    <h2 className="text-lg font-semibold text-white mb-6 font-[Lora]">Real-time Feedback</h2>
                     <FeedbackPanel
                         feedback={interview.feedback as any}
                         isEvaluating={interview.isEvaluating}
                     />
 
                     {/* Interview Progress */}
-                    <div className="mt-6 p-4 bg-white rounded-[12px] border border-[#E5E7EB]">
-                        <h3 className="font-medium text-[#0F172A] mb-3 font-[Lora]">Progress</h3>
+                    <div className="mt-6 p-4 rounded-[12px] border border-slate-700 bg-slate-900/80">
+                        <h3 className="font-medium text-white mb-3 font-[Lora]">Progress</h3>
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-[#475569] font-[Lexend]">Mode</span>
-                                <span className="text-[#0F172A] font-[Lexend] capitalize">{mode}</span>
+                                <span className="text-slate-400 font-[Lexend]">Mode</span>
+                                <span className="text-slate-100 font-[Lexend] capitalize">{mode}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-[#475569] font-[Lexend]">Questions</span>
-                                <span className="text-[#0F172A] font-[Lexend]">{interview.currentTurn}</span>
+                                <span className="text-slate-400 font-[Lexend]">Questions</span>
+                                <span className="text-slate-100 font-[Lexend]">{interview.currentTurn}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-[#475569] font-[Lexend]">Feedback</span>
-                                <span className="text-[#0F172A] font-[Lexend]">{interview.allFeedbacks.length}</span>
+                                <span className="text-slate-400 font-[Lexend]">Feedback</span>
+                                <span className="text-slate-100 font-[Lexend]">{interview.allFeedbacks.length}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-[#475569] font-[Lexend]">Time Left</span>
-                                <span className="text-[#0F172A] font-[Lexend]">{formattedTimer}</span>
+                                <span className="text-slate-400 font-[Lexend]">Time Left</span>
+                                <span className="text-slate-100 font-[Lexend]">{formattedTimer}</span>
                             </div>
                             {mode === 'voice' && (
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-[#475569] font-[Lexend]">TTS</span>
+                                    <span className="text-slate-400 font-[Lexend]">TTS</span>
                                     <span className={cn(
                                         "font-[Lexend] font-medium",
                                         autoSpeakEnabled ? "text-[#10B981]" : "text-[#94A3B8]"
@@ -478,8 +481,8 @@ function LiveInterviewContent() {
 function LiveInterviewPage() {
     return (
         <Suspense fallback={
-            <div className="h-screen flex items-center justify-center bg-white">
-                <div className="w-10 h-10 border-4 border-[#E5E7EB] border-t-[#0D9488] rounded-full animate-spin" />
+            <div className="h-screen flex items-center justify-center bg-slate-950">
+                <div className="w-10 h-10 border-4 border-slate-700 border-t-[#0D9488] rounded-full animate-spin" />
             </div>
         }>
             <LiveInterviewContent />

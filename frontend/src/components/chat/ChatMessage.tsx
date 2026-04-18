@@ -44,17 +44,17 @@ export const ChatMessage = React.memo(function ChatMessage({ message }: ChatMess
                 className={cn(
                     'max-w-[70%] rounded-[16px] px-4 py-3',
                     isUser
-                        ? 'bg-[#E2E8F0] text-[#0F172A] rounded-tr-[4px]'
-                        : 'bg-[#F1F5F9] text-[#0F172A] rounded-tl-[4px]'
+                        ? 'bg-teal-500/18 border border-teal-400/25 text-slate-100 rounded-tr-[4px]'
+                        : 'bg-slate-900/85 border border-slate-700 text-slate-100 rounded-tl-[4px]'
                 )}
             >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap font-[Lexend]">
                     {message.message}
                     {message.streaming && (
-                        <span className="inline-block ml-1 animate-pulse text-[#94A3B8]">▊</span>
+                        <span className="inline-block ml-1 animate-pulse text-slate-400">▊</span>
                     )}
                 </p>
-                <p className="text-xs mt-2 text-[#94A3B8] font-[Lexend]">
+                <p className="text-xs mt-2 text-slate-400 font-[Lexend]">
                     {new Date(message.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit'
