@@ -119,9 +119,6 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Backend will be available at: `http://localhost:8000`
-API Documentation: `http://localhost:8000/docs`
-
 ### **3. Frontend Setup**
 
 ```bash
@@ -138,8 +135,6 @@ echo "NEXT_PUBLIC_WS_URL=http://localhost:8000" >> .env.local
 # Run development server
 npm run dev
 ```
-
-Frontend will be available at: `http://localhost:3000`
 
 ---
 
@@ -230,8 +225,8 @@ GROQ_MAX_TOKENS=2048
 GROQ_TEMPERATURE=0.7
 
 # Application
-CORS_ORIGINS=["http://localhost:3000"]
-ENVIRONMENT=development
+CORS_ORIGINS=["your_frontend_url"]
+ENVIRONMENT=production
 APP_DEBUG=False
 
 # Rate Limiting
@@ -246,8 +241,8 @@ ALLOWED_FILE_TYPES=["pdf", "docx", "txt"]
 ### **Frontend Configuration** (`frontend/.env.local`)
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_WS_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=your_backend_api_url
+NEXT_PUBLIC_WS_URL=your_backend_websocket_url
 ```
 
 ---
@@ -282,7 +277,7 @@ NEXT_PUBLIC_WS_URL=http://localhost:8000
 
 ### **WebSocket Protocol**
 
-**Connection**: `ws://localhost:8000/ws/interview?token={jwt}&interview_id={id}&user_id={id}`
+**Connection**: `ws://your-backend-url/ws/interview/{interview_id}?token={jwt}`
 
 **Message Types**:
 - `connect` - Connection established
@@ -588,8 +583,7 @@ Built with ❤️ by the InterviewMe Team
 
 For issues, questions, or contributions:
 - GitHub Issues: [Create an issue]
-- Documentation: See `/docs` folder
-- API Docs: `http://localhost:8000/docs`
+- API Documentation: Available at `/docs` endpoint
 
 ---
 
